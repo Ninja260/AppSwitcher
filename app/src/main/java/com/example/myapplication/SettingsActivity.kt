@@ -79,7 +79,7 @@ fun SettingsScreen() {
                 appInfo.packageName
             }
             AppEntry(packageName = appInfo.packageName, label = label)
-        }.sortedBy { it.label }
+        }.sortedBy { it.label } // Apps are initially sorted alphabetically by label
 
         Log.d("SettingsScreen", "Number of launchable app entries: ${launchableAppEntries.size}")
         launchableAppEntries
@@ -99,8 +99,24 @@ fun SettingsScreen() {
         }
     }
 
+    // Create the sorted list for display: selected apps first, then unselected, both groups alphabetical
+    val sortedDisplayApplications = remember(applications, selectedPackageNames) {
+        if (applications.isEmpty()) {
+            emptyList()
+        } else {
+            // Partition the list into selected and unselected apps
+            // Since 'applications' is already sorted alphabetically,
+            // 'partition' will maintain this relative order within each group.
+            val (selectedApps, unselectedApps) = applications.partition { appEntry ->
+                appEntry.packageName in selectedPackageNames
+            }
+            // Combine the two lists: selected apps appear at the top
+            selectedApps + unselectedApps
+        }
+    }
+
     SettingsScreenContent(
-        applications = applications,
+        applications = sortedDisplayApplications, // Use the new sorted list
         selectedPackageNames = selectedPackageNames,
         onSelectionChanged = { packageName, isSelected ->
             selectedPackageNames = if (isSelected) {
@@ -159,10 +175,28 @@ fun SettingsScreenContent(
 fun SettingsScreenPreview() {
     MyApplicationTheme {
         val previewApps = listOf(
-            AppEntry("com.example.app1", "App 1"),
-            AppEntry("com.example.app2", "Another Application Name"),
-            AppEntry("com.example.app3", "Yet Another App")
+            AppEntry("com.example.app1", "App 1"), // Will be selected
+            AppEntry("com.example.app2", "Another Application Name"), // Will be unselected
+            AppEntry("com.example.app3", "Yet Another App"), // Will be unselected
+            AppEntry("com.example.app4", "Beta App") // Will be selected
+        ).sortedBy { it.label } // Mimic initial sort: App 1, Another App, Beta App, Yet Another
+
+        val selectedPreviewPackages = setOf("com.example.app1", "com.example.app4")
+
+        // Manually create the sorted list for preview based on the logic
+        val (selected, unselected) = previewApps.partition { it.packageName in selectedPreviewPackages }
+        val sortedPreviewApps = selected + unselected
+        // Expected order for preview:
+        // App 1 (selected)
+        // Beta App (selected)
+        // Another Application Name (unselected)
+        // Yet Another App (unselected)
+
+        SettingsScreenContent(
+            applications = sortedPreviewApps,
+            selectedPackageNames = selectedPreviewPackages,
+            onSelectionChanged = { _, _ -> /* Do nothing in preview */ }
         )
-        SettingsScreenContent(applications = previewApps, selectedPackageNames = setOf("com.example.app1"), onSelectionChanged = { packageName, isSelected -> /* Do nothing in preview */ })
     }
 }
+
