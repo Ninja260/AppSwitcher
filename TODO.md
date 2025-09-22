@@ -1,19 +1,28 @@
 # App Switcher - TODO List
 
-This document outlines the development tasks required to build the App Switcher application based on the [PRD.md](PRD.md).
+This document outlines the development tasks required to build the App Switcher application based on the [PRD.md](PRD.md). Refer to [NOTICE.md](NOTICE.md) for important considerations regarding specific Android features and APIs.
+
+## Development Workflow
+
+For each item in this TODO list:
+1.  The AI assistant (Gemini) will assist with the implementation of the item.
+2.  The user will manually test the implemented functionality.
+3.  The user will decide if the item is complete and satisfactory ("done"). **Tasks will only be marked as done upon explicit user approval.**
+4.  Once an item is marked as done, the AI assistant will suggest the user make a Git commit for the changes related to that item.
+5.  We will then proceed to the next item in the list.
 
 ## Phase 1: Core Functionality (MVP)
 
 *   **[ ] 1. Project Setup & Basic Structure**
-    *   [ ] 1.1. Confirm target Android SDK versions.
-    *   [ ] 1.2. Set up necessary permissions in `AndroidManifest.xml` (e.g., `SYSTEM_ALERT_WINDOW`).
+    *   [X] 1.1. Confirm target Android SDK versions. (See NOTICE.md for implications)
+    *   [ ] 1.2. Set up necessary permissions in `AndroidManifest.xml` (e.g., `SYSTEM_ALERT_WINDOW`). (See NOTICE.md)
 *   **[ ] 2. Floating Action Service**
-    *   [ ] 2.1. Create a foreground service to manage the floating action.
-    *   [ ] 2.2. Implement logic to request "Display over other apps" permission from the user.
+    *   [ ] 2.1. Create a foreground service to manage the floating action. (See NOTICE.md regarding foreground service requirements)
+    *   [ ] 2.2. Implement logic to request "Display over other apps" permission from the user. (See NOTICE.md regarding SYSTEM_ALERT_WINDOW)
     *   [ ] 2.3. Design and implement the basic visual appearance of the floating action (e.g., a simple button or small panel).
 *   **[ ] 3. App Selection & Storage**
     *   [ ] 3.1. Create a basic settings/configuration screen (Activity or Composable).
-    *   [ ] 3.2. Implement functionality to list all installed applications on the device.
+    *   [ ] 3.2. Implement functionality to list all installed applications on the device. (See NOTICE.md for critical package visibility considerations)
     *   [ ] 3.3. Allow users to select multiple apps from the list.
     *   [ ] 3.4. Store the list of user-selected apps persistently (e.g., using SharedPreferences or a simple database).
 *   **[ ] 4. Displaying App Shortcuts in Floating Action**
@@ -43,7 +52,7 @@ This document outlines the development tasks required to build the App Switcher 
     *   [ ] 9.1. Profile and optimize the floating service for minimal CPU and memory usage.
     *   [ ] 9.2. Ensure smooth animations and interactions for the floating action.
 *   **[ ] 10. Battery Usage Optimization**
-    *   [ ] 10.1. Analyze and minimize battery consumption by the foreground service.
+    *   [ ] 10.1. Analyze and minimize battery consumption by the foreground service. (See NOTICE.md regarding foreground service requirements)
 *   **[ ] 11. Robustness and Error Handling**
     *   [ ] 11.1. Handle cases where selected apps are uninstalled.
     *   [ ] 11.2. Ensure the floating action behaves correctly across device reboots.
