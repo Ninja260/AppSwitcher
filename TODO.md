@@ -19,7 +19,7 @@ For each item in this TODO list:
 *   **[ ] 2. Floating Action Service**
     *   [X] 2.1. Create a foreground service to manage the floating action. (See NOTICE.md regarding foreground service requirements)
     *   [X] 2.2. Implement logic to request "Display over other apps" permission from the user. (See NOTICE.md regarding SYSTEM_ALERT_WINDOW)
-    *   [ ] 2.3. Design and implement the basic visual appearance of the floating action (e.g., a simple button or small panel).
+    *   [X] 2.3. Design and implement the basic visual appearance of the floating action (e.g., a simple button or small panel).
 *   **[ ] 3. App Selection & Storage**
     *   [ ] 3.1. Create a basic settings/configuration screen (Activity or Composable).
     *   [ ] 3.2. Implement functionality to list all installed applications on the device. (See NOTICE.md for critical package visibility considerations)
