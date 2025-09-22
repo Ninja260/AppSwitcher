@@ -1,23 +1,20 @@
 package com.example.myapplication
 
-import android.Manifest // Added
 import android.content.Intent
-import android.content.pm.PackageManager // Added
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,39 +22,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat // Added
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
 
-    private val TAG = "MainActivity" // Added
-
-    // Launcher for the notification permission request (Android 13+)
-    private val notificationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-            if (isGranted) {
-                Log.d(TAG, "POST_NOTIFICATIONS permission granted.")
-                startFloatingService()
-            } else {
-                Log.d(TAG, "POST_NOTIFICATIONS permission NOT granted.")
-                // Optionally, inform the user that notifications are needed for the service
-            }
-        }
-
-    // Launcher for the overlay permission request
     private val overlayPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            // No direct result code to check here, Settings.canDrawOverlays needs to be re-checked
             if (Settings.canDrawOverlays(this)) {
-                Log.d(TAG, "Overlay permission granted after returning from settings.")
-                requestNotificationPermission() // Proceed to notification permission
+                Log.d("MainActivity", "Overlay permission granted after returning from settings.")
+                startFloatingActionService()
             } else {
-                Log.d(TAG, "Overlay permission NOT granted after returning from settings.")
+                Log.d("MainActivity", "Overlay permission NOT granted after returning from settings.")
+                // Optionally, show a message to the user explaining why the permission is needed
             }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -65,6 +47,10 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding),
                         onEnableClick = {
                             checkAndRequestOverlayPermission()
+                        },
+                        onGoToSettingsClick = {
+                            val intent = Intent(this@MainActivity, SettingsActivity::class.java)
+                            startActivity(intent)
                         }
                     )
                 }
@@ -73,64 +59,41 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkAndRequestOverlayPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (!Settings.canDrawOverlays(this)) {
-                Log.d(TAG, "Overlay permission not granted. Requesting...")
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:$packageName")
-                )
-                overlayPermissionLauncher.launch(intent)
+        if (!Settings.canDrawOverlays(this)) {
+            Log.d("MainActivity", "Overlay permission not available. Requesting...")
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            overlayPermissionLauncher.launch(intent)
+        } else {
+            Log.d("MainActivity", "Overlay permission already available.")
+            startFloatingActionService()
+        }
+    }
+
+    private fun startFloatingActionService() {
+        if (Settings.canDrawOverlays(this)) {
+            Log.d("MainActivity", "Starting FloatingActionService.")
+            val intent = Intent(this, FloatingActionService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
             } else {
-                Log.d(TAG, "Overlay permission already granted.")
-                requestNotificationPermission() // Proceed to notification permission
+                startService(intent)
             }
         } else {
-            Log.d(TAG, "Below Android M, no overlay permission request needed via Settings.")
-            requestNotificationPermission() // Proceed to notification permission
-        }
-    }
-
-    private fun requestNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
-            when {
-                ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED -> {
-                    Log.d(TAG, "POST_NOTIFICATIONS permission already granted.")
-                    startFloatingService()
-                }
-                shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
-                    // Optionally, show an educational UI explaining why the permission is needed
-                    Log.d(TAG, "Showing rationale for POST_NOTIFICATIONS permission.")
-                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-                else -> {
-                    Log.d(TAG, "Requesting POST_NOTIFICATIONS permission.")
-                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            }
-        } else {
-            // Below Android 13, no runtime permission needed for notifications
-            Log.d(TAG, "Below Android 13, no runtime POST_NOTIFICATIONS permission needed.")
-            startFloatingService()
-        }
-    }
-
-    private fun startFloatingService() {
-        Log.d(TAG, "Attempting to start FloatingActionService.")
-        val serviceIntent = Intent(this, FloatingActionService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
+            Log.e("MainActivity", "Attempted to start service without overlay permission.")
+            // This case should ideally be prevented by checkAndRequestOverlayPermission
         }
     }
 }
 
 @Composable
-fun MainScreen(modifier: Modifier = Modifier, onEnableClick: () -> Unit) {
+fun MainScreen(
+    modifier: Modifier = Modifier,
+    onEnableClick: () -> Unit,
+    onGoToSettingsClick: () -> Unit
+) {
     Column(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -138,10 +101,17 @@ fun MainScreen(modifier: Modifier = Modifier, onEnableClick: () -> Unit) {
     ) {
         Text(
             text = "Welcome to App Switcher!",
+            style = MaterialTheme.typography.headlineSmall, // Example styling
             modifier = Modifier.padding(bottom = 16.dp)
         )
         Button(onClick = onEnableClick) {
             Text("Enable Floating Action")
+        }
+        Button(
+            onClick = onGoToSettingsClick,
+            modifier = Modifier.padding(top = 8.dp)
+        ) {
+            Text("Go to Settings")
         }
     }
 }
@@ -150,7 +120,6 @@ fun MainScreen(modifier: Modifier = Modifier, onEnableClick: () -> Unit) {
 @Composable
 fun MainScreenPreview() {
     MyApplicationTheme {
-        MainScreen(onEnableClick = {})
+        MainScreen(onEnableClick = {}, onGoToSettingsClick = {})
     }
 }
-
