@@ -27,7 +27,7 @@ For each item in this TODO list:
     *   [X] 3.4. Store the list of user-selected apps persistently (e.g., using SharedPreferences or a simple database).
 *   **[ ] 4. Displaying App Shortcuts in Floating Action**
     *   [X] 4.1. The floating action service should read the saved list of selected apps.
-    *   [ ] 4.2. Dynamically display icons of the selected apps within the floating action interface.
+    *   [X] 4.2. Dynamically display icons of the selected apps within the floating action interface.
     *   [ ] 4.3. Ensure icons are clear and identifiable.
 *   **[ ] 5. App Switching Logic**
     *   [ ] 5.1. Implement the functionality to launch an app (or bring to foreground if already running) when its icon is tapped in the floating action.
