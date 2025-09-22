@@ -21,7 +21,7 @@ For each item in this TODO list:
     *   [X] 2.2. Implement logic to request "Display over other apps" permission from the user. (See NOTICE.md regarding SYSTEM_ALERT_WINDOW)
     *   [X] 2.3. Design and implement the basic visual appearance of the floating action (e.g., a simple button or small panel).
 *   **[ ] 3. App Selection & Storage**
-    *   [ ] 3.1. Create a basic settings/configuration screen (Activity or Composable).
+    *   [X] 3.1. Create a basic settings/configuration screen (Activity or Composable).
     *   [ ] 3.2. Implement functionality to list all installed applications on the device. (See NOTICE.md for critical package visibility considerations)
     *   [ ] 3.3. Allow users to select multiple apps from the list.
     *   [ ] 3.4. Store the list of user-selected apps persistently (e.g., using SharedPreferences or a simple database).
