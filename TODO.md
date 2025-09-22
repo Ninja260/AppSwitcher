@@ -17,7 +17,7 @@ For each item in this TODO list:
     *   [X] 1.1. Confirm target Android SDK versions. (See NOTICE.md for implications)
     *   [X] 1.2. Set up necessary permissions in `AndroidManifest.xml` (e.g., `SYSTEM_ALERT_WINDOW`). (See NOTICE.md)
 *   **[ ] 2. Floating Action Service**
-    *   [ ] 2.1. Create a foreground service to manage the floating action. (See NOTICE.md regarding foreground service requirements)
+    *   [X] 2.1. Create a foreground service to manage the floating action. (See NOTICE.md regarding foreground service requirements)
     *   [ ] 2.2. Implement logic to request "Display over other apps" permission from the user. (See NOTICE.md regarding SYSTEM_ALERT_WINDOW)
     *   [ ] 2.3. Design and implement the basic visual appearance of the floating action (e.g., a simple button or small panel).
 *   **[ ] 3. App Selection & Storage**
