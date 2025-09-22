@@ -1,5 +1,7 @@
 package com.example.myapplication
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
@@ -18,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +34,15 @@ import com.example.myapplication.ui.theme.MyApplicationTheme
 
 // Data class to hold app information
 data class AppEntry(val packageName: String, val label: String)
+
+// SharedPreferences constants
+private const val PREFS_NAME = "app_switcher_prefs"
+private const val KEY_SELECTED_APPS = "selected_app_packages"
+
+// Helper function to get SharedPreferences instance
+private fun getPrefs(context: Context): SharedPreferences {
+    return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+}
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,6 +62,7 @@ class SettingsActivity : ComponentActivity() {
 fun SettingsScreen() {
     val context = LocalContext.current
     val packageManager = context.packageManager
+    val prefs = remember { getPrefs(context) } // Get SharedPreferences instance
 
     val applications = remember {
         Log.d("SettingsScreen", "Fetching installed applications...")
@@ -63,16 +76,28 @@ fun SettingsScreen() {
                 packageManager.getApplicationLabel(appInfo).toString()
             } catch (e: Exception) {
                 Log.w("SettingsScreen", "Failed to get label for ${appInfo.packageName}", e)
-                appInfo.packageName // Fallback to package name if label fails
+                appInfo.packageName
             }
             AppEntry(packageName = appInfo.packageName, label = label)
-        }.sortedBy { it.label } // Sort by label
+        }.sortedBy { it.label }
 
         Log.d("SettingsScreen", "Number of launchable app entries: ${launchableAppEntries.size}")
         launchableAppEntries
     }
 
-    var selectedPackageNames by remember { mutableStateOf(emptySet<String>()) }
+    // State to hold the set of selected application package names, initialized from SharedPreferences
+    var selectedPackageNames by remember {
+        mutableStateOf(prefs.getStringSet(KEY_SELECTED_APPS, emptySet()) ?: emptySet())
+    }
+
+    // Use LaunchedEffect to save to SharedPreferences when selectedPackageNames changes
+    LaunchedEffect(selectedPackageNames) {
+        Log.d("SettingsScreen", "Saving selected apps: $selectedPackageNames")
+        with(prefs.edit()) {
+            putStringSet(KEY_SELECTED_APPS, selectedPackageNames)
+            apply()
+        }
+    }
 
     SettingsScreenContent(
         applications = applications,
@@ -86,6 +111,7 @@ fun SettingsScreen() {
         }
     )
 }
+
 
 // Extracted content of SettingsScreen for better previewability
 @Composable
@@ -127,18 +153,16 @@ fun SettingsScreenContent(
     }
 }
 
+
 @Preview(showBackground = true)
 @Composable
 fun SettingsScreenPreview() {
     MyApplicationTheme {
-        // Create a dummy list of AppEntry for preview purposes
         val previewApps = listOf(
             AppEntry("com.example.app1", "App 1"),
             AppEntry("com.example.app2", "Another Application Name"),
             AppEntry("com.example.app3", "Yet Another App")
         )
-        // This preview won't reflect real selection logic perfectly but shows the layout
-        // For a more interactive preview, you'd hoist the state or use a simpler fixed selection.
-        SettingsScreenContent(applications = previewApps, selectedPackageNames = setOf("com.example.app1"), onSelectionChanged = {_, _ -> /* No-op for preview */})
+        SettingsScreenContent(applications = previewApps, selectedPackageNames = setOf("com.example.app1"), onSelectionChanged = { packageName, isSelected -> /* Do nothing in preview */ })
     }
 }
