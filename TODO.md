@@ -38,7 +38,7 @@ For each item in this TODO list:
 ## Phase 2: UI/UX Enhancements & Polish
 
 *   **[ ] 6. Floating Action Customization (Basic)**
-    *   [ ] 6.1. Allow users to move the floating action element on the screen.
+    *   [X] 6.1. Allow users to move the floating action element on the screen.
     *   [ ] 6.2. (Optional) Implement docking to screen edges.
 *   **[ ] 7. App List Management in Settings**
     *   [ ] 7.1. Allow users to remove apps from the selected list.
