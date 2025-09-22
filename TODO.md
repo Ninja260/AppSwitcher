@@ -23,7 +23,7 @@ For each item in this TODO list:
 *   **[ ] 3. App Selection & Storage**
     *   [X] 3.1. Create a basic settings/configuration screen (Activity or Composable).
     *   [X] 3.2. Implement functionality to list all installed applications on the device. (See NOTICE.md for critical package visibility considerations)
-    *   [ ] 3.3. Allow users to select multiple apps from the list.
+    *   [X] 3.3. Allow users to select multiple apps from the list.
     *   [ ] 3.4. Store the list of user-selected apps persistently (e.g., using SharedPreferences or a simple database).
 *   **[ ] 4. Displaying App Shortcuts in Floating Action**
     *   [ ] 4.1. The floating action service should read the saved list of selected apps.
