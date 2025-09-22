@@ -4,6 +4,13 @@
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <!-- Required for foregroundServiceType="systemAlertWindow" / "specialUse" with SYSTEM_ALERT_WINDOW on Android 14+ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_ALERT_WINDOW" />
+    <!-- Required for foregroundServiceType="specialUse" -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Required to post notifications on Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
 
     <application
         android:allowBackup="true"
@@ -29,7 +36,12 @@
 
         <service
             android:name=".FloatingActionService"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse" >
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="SYSTEM_ALERT_WINDOW" />
+        </service>
 
     </application>
 
