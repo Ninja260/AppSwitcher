@@ -32,7 +32,7 @@ For each item in this TODO list:
     *   [X] 4.3. Ensure icons are clear and identifiable.
 *   **[ ] 5. App Switching Logic**
     *   [X] 5.1. Implement the functionality to launch an app (or bring to foreground if already running) when its icon is tapped in the floating action.
-    *   [ ] 5.2. If an app fails to launch (e.g., uninstalled), remove it from the floating action and persistent storage.
+    *   [X] 5.2. If an app fails to launch (e.g., uninstalled), remove it from the floating action and persistent storage.
     *   [ ] 5.3. Test thoroughly on various Android versions and with different apps.
 
 ## Phase 2: UI/UX Enhancements & Polish
