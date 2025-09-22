@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-09-22T17:57:10.208296279Z">
+        <DropdownSelection timestamp="2025-09-22T18:00:14.440309188Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=/home/myomin/.android/avd/Pixel_8a.avd" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=0925537312008330" />
             </handle>
           </Target>
         </DropdownSelection>

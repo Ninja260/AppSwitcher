@@ -22,16 +22,18 @@ For each item in this TODO list:
     *   [X] 2.3. Design and implement the basic visual appearance of the floating action (e.g., a simple button or small panel).
 *   **[ ] 3. App Selection & Storage**
     *   [X] 3.1. Create a basic settings/configuration screen (Activity or Composable).
-    *   [X] 3.2. Implement functionality to list all installed applications on the device. (See NOTICE.md for critical package visibility considerations)
+    *   [X] 3.2. Implement functionality to list all <caret>installed applications on the device. (See NOTICE.md for critical package visibility considerations)
     *   [X] 3.3. Allow users to select multiple apps from the list.
     *   [X] 3.4. Store the list of user-selected apps persistently (e.g., using SharedPreferences or a simple database).
+    *   [ ] 3.5. Show the selected apps at the top of the list in the settings screen.
 *   **[ ] 4. Displaying App Shortcuts in Floating Action**
     *   [X] 4.1. The floating action service should read the saved list of selected apps.
     *   [X] 4.2. Dynamically display icons of the selected apps within the floating action interface.
     *   [X] 4.3. Ensure icons are clear and identifiable.
 *   **[ ] 5. App Switching Logic**
-    *   [ ] 5.1. Implement the functionality to launch an app (or bring to foreground if already running) when its icon is tapped in the floating action.
-    *   [ ] 5.2. Test thoroughly on various Android versions and with different apps.
+    *   [X] 5.1. Implement the functionality to launch an app (or bring to foreground if already running) when its icon is tapped in the floating action.
+    *   [ ] 5.2. If an app fails to launch (e.g., uninstalled), remove it from the floating action and persistent storage.
+    *   [ ] 5.3. Test thoroughly on various Android versions and with different apps.
 
 ## Phase 2: UI/UX Enhancements & Polish
 
