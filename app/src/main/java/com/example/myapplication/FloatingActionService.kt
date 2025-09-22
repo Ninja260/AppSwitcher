@@ -51,7 +51,7 @@ class FloatingActionService : Service() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val packageManager = applicationContext.packageManager
 
-        val iconSize = (56 * resources.displayMetrics.density).toInt() // Example icon size (56dp)
+        val iconSize = (48 * resources.displayMetrics.density).toInt() // Example icon size (48dp)
 
         // Create a LinearLayout to hold the app icons
         val linearLayout = LinearLayout(this).apply {
