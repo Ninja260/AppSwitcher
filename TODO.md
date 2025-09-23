@@ -40,10 +40,16 @@ For each item in this TODO list:
 *   **[X] 6. Floating Action Customization (Basic)**
     *   [X] 6.1. Allow users to move the floating action element on the screen.
     *   [X] 6.2. (Optional) Implement docking to screen edges.
-*   **[ ] 7. App List Management in Settings**
+*   **[ ] 7. Changes to Settings Module**
     *   [X] 7.1. Allow users to remove apps from the selected list.
-    *   [ ] 7.2. (Optional) Allow users to reorder the apps in the list (this order would then reflect in the floating action).
-    *   [ ] 7.3. Improve the UI of the app selection screen for better usability.
+    *   [ ] 7.2. Create a main Settings screen with global controls:
+        *   [ ] 7.2.1. Implement an "Enable App Switcher" switch on this main Settings screen to easily toggle the floating action service on/off.
+        *   [ ] 7.2.2. Add a "Selected Applications" navigation item on the main Settings screen that, when clicked, opens the app selection page.
+    *   [ ] 7.3. Enhance the App Selection Page (currently SettingsActivity):
+        *   [ ] 7.3.1. Modify app list display: Remove the current behavior of sorting selected apps to the top of the list (apps will appear in a single, alphabetically sorted list, filterable by search and selection status).
+        *   [ ] 7.3.2. Implement search functionality: Add a search bar to allow users to filter the list of installed applications by name.
+        *   [ ] 7.3.3. Implement filter toggle: Add a control (e.g., a filter icon button) to allow users to switch the list view between "All Apps" and "Selected Apps Only".
+        *   [ ] 7.3.4. General UI/UX improvements: Further refine the app selection screen for better clarity and ease of use (e.g., improving visual distinction for selected items if not covered by filters).
 *   **[ ] 8. User Experience & Onboarding**
     *   [ ] 8.1. Provide clear instructions on how to grant necessary permissions.
     *   [ ] 8.2. Create a simple first-launch experience or tutorial.
