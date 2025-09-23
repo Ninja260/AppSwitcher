@@ -41,7 +41,7 @@ For each item in this TODO list:
     *   [X] 6.1. Allow users to move the floating action element on the screen.
     *   [X] 6.2. (Optional) Implement docking to screen edges.
 *   **[ ] 7. App List Management in Settings**
-    *   [ ] 7.1. Allow users to remove apps from the selected list.
+    *   [X] 7.1. Allow users to remove apps from the selected list.
     *   [ ] 7.2. (Optional) Allow users to reorder the apps in the list (this order would then reflect in the floating action).
     *   [ ] 7.3. Improve the UI of the app selection screen for better usability.
 *   **[ ] 8. User Experience & Onboarding**

@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -39,6 +40,8 @@ data class AppEntry(val packageName: String, val label: String)
 private const val PREFS_NAME = "app_switcher_prefs"
 private const val KEY_SELECTED_APPS = "selected_app_packages"
 
+// REMOVED: const val ACTION_REFRESH_FLOATING_VIEW = "com.example.myapplication.ACTION_REFRESH_FLOATING_VIEW"
+
 // Helper function to get SharedPreferences instance
 private fun getPrefs(context: Context): SharedPreferences {
     return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -57,12 +60,11 @@ class SettingsActivity : ComponentActivity() {
     }
 }
 
-// Adjusted SettingsScreen to use the extracted content for better testability/previewability
 @Composable
 fun SettingsScreen() {
     val context = LocalContext.current
     val packageManager = context.packageManager
-    val prefs = remember { getPrefs(context) } // Get SharedPreferences instance
+    val prefs = remember { getPrefs(context) }
 
     val applications = remember {
         Log.d("SettingsScreen", "Fetching installed applications...")
@@ -79,44 +81,42 @@ fun SettingsScreen() {
                 appInfo.packageName
             }
             AppEntry(packageName = appInfo.packageName, label = label)
-        }.sortedBy { it.label } // Apps are initially sorted alphabetically by label
+        }.sortedBy { it.label }
 
         Log.d("SettingsScreen", "Number of launchable app entries: ${launchableAppEntries.size}")
         launchableAppEntries
     }
 
-    // State to hold the set of selected application package names, initialized from SharedPreferences
     var selectedPackageNames by remember {
         mutableStateOf(prefs.getStringSet(KEY_SELECTED_APPS, emptySet()) ?: emptySet())
     }
 
-    // Use LaunchedEffect to save to SharedPreferences when selectedPackageNames changes
-    LaunchedEffect(selectedPackageNames) {
+    LaunchedEffect(selectedPackageNames, context) {
         Log.d("SettingsScreen", "Saving selected apps: $selectedPackageNames")
         with(prefs.edit()) {
             putStringSet(KEY_SELECTED_APPS, selectedPackageNames)
             apply()
         }
+        Log.d("SettingsScreen", "Sending intent to FloatingActionService to refresh: ${FloatingActionService.ACTION_REFRESH_FLOATING_VIEW}") // CHANGED
+        val serviceIntent = Intent(context, FloatingActionService::class.java).apply {
+            action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW // CHANGED
+        }
+        context.startService(serviceIntent)
     }
 
-    // Create the sorted list for display: selected apps first, then unselected, both groups alphabetical
     val sortedDisplayApplications = remember(applications, selectedPackageNames) {
         if (applications.isEmpty()) {
             emptyList()
         } else {
-            // Partition the list into selected and unselected apps
-            // Since 'applications' is already sorted alphabetically,
-            // 'partition' will maintain this relative order within each group.
             val (selectedApps, unselectedApps) = applications.partition { appEntry ->
                 appEntry.packageName in selectedPackageNames
             }
-            // Combine the two lists: selected apps appear at the top
             selectedApps + unselectedApps
         }
     }
 
     SettingsScreenContent(
-        applications = sortedDisplayApplications, // Use the new sorted list
+        applications = sortedDisplayApplications,
         selectedPackageNames = selectedPackageNames,
         onSelectionChanged = { packageName, isSelected ->
             selectedPackageNames = if (isSelected) {
@@ -128,8 +128,6 @@ fun SettingsScreen() {
     )
 }
 
-
-// Extracted content of SettingsScreen for better previewability
 @Composable
 fun SettingsScreenContent(
     applications: List<AppEntry>,
@@ -169,28 +167,20 @@ fun SettingsScreenContent(
     }
 }
 
-
 @Preview(showBackground = true)
 @Composable
 fun SettingsScreenPreview() {
     MyApplicationTheme {
         val previewApps = listOf(
-            AppEntry("com.example.app1", "App 1"), // Will be selected
-            AppEntry("com.example.app2", "Another Application Name"), // Will be unselected
-            AppEntry("com.example.app3", "Yet Another App"), // Will be unselected
-            AppEntry("com.example.app4", "Beta App") // Will be selected
-        ).sortedBy { it.label } // Mimic initial sort: App 1, Another App, Beta App, Yet Another
+            AppEntry("com.example.app1", "App 1"),
+            AppEntry("com.example.app2", "Another Application Name"),
+            AppEntry("com.example.app3", "Yet Another App"),
+            AppEntry("com.example.app4", "Beta App")
+        ).sortedBy { it.label }
 
         val selectedPreviewPackages = setOf("com.example.app1", "com.example.app4")
-
-        // Manually create the sorted list for preview based on the logic
         val (selected, unselected) = previewApps.partition { it.packageName in selectedPreviewPackages }
         val sortedPreviewApps = selected + unselected
-        // Expected order for preview:
-        // App 1 (selected)
-        // Beta App (selected)
-        // Another Application Name (unselected)
-        // Yet Another App (unselected)
 
         SettingsScreenContent(
             applications = sortedPreviewApps,
@@ -199,4 +189,3 @@ fun SettingsScreenPreview() {
         )
     }
 }
-
