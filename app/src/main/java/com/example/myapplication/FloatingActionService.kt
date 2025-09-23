@@ -125,10 +125,10 @@ class FloatingActionService : Service() {
         currentFloatingView.removeAllViews() // DraggableLinearLayout is a ViewGroup
 
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val selectedAppPackages = prefs.getStringSet(KEY_SELECTED_APPS, emptySet()) ?: emptySet()
-        Log.d(TAG, "Refreshing icons. Selected apps: $selectedAppPackages")
+        val selectedAppPackagesSet = prefs.getStringSet(KEY_SELECTED_APPS, emptySet()) ?: emptySet()
+        Log.d(TAG, "Refreshing icons. Selected apps: $selectedAppPackagesSet")
 
-        if (selectedAppPackages.isEmpty()) {
+        if (selectedAppPackagesSet.isEmpty()) {
             Log.d(TAG, "No apps selected to display in floating view.")
             // Optionally, make the view GONE or INVISIBLE if it's empty
             // currentFloatingView.visibility = View.GONE
@@ -138,11 +138,11 @@ class FloatingActionService : Service() {
         //    currentFloatingView.visibility = View.VISIBLE
         // }
 
-
         val localPackageManager = applicationContext.packageManager
         val iconSize = (48 * resources.displayMetrics.density).toInt()
+        val selectedAppPackagesList = selectedAppPackagesSet.toList() // Convert Set to List
 
-        selectedAppPackages.forEach { packageName ->
+        selectedAppPackagesList.forEachIndexed { index, packageName -> // Use forEachIndexed
             try {
                 val appInfo = localPackageManager.getApplicationInfo(packageName, 0)
                 val appLabel = localPackageManager.getApplicationLabel(appInfo).toString()
@@ -151,7 +151,10 @@ class FloatingActionService : Service() {
                 val imageView = ImageView(this).apply {
                     setImageDrawable(appIcon)
                     layoutParams = LinearLayout.LayoutParams(iconSize, iconSize).apply {
-                        bottomMargin = 8.dpToPx()
+                        // Only add bottomMargin if it's NOT the last item
+                        if (index < selectedAppPackagesList.lastIndex) {
+                            bottomMargin = 8.dpToPx()
+                        }
                     }
                     contentDescription = appLabel
                     isClickable = true // Explicitly set, helps with touch event handling
