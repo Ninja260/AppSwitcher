@@ -43,8 +43,8 @@ For each item in this TODO list:
 *   **[ ] 7. Changes to Settings Module**
     *   [X] 7.1. Allow users to remove apps from the selected list.
     *   [ ] 7.2. Create a main Settings screen with global controls:
-        *   [ ] 7.2.1. Implement an "Enable App Switcher" switch on this main Settings screen to easily toggle the floating action service on/off.
-        *   [ ] 7.2.2. Add a "Selected Applications" navigation item on the main Settings screen that, when clicked, opens the app selection page.
+        *   [X] 7.2.1. Implement an "Enable App Switcher" switch on this main Settings screen to easily toggle the floating action service on/off.
+        *   [X] 7.2.2. Add a "Selected Applications" navigation item on the main Settings screen that, when clicked, opens the app selection page.
     *   [ ] 7.3. Enhance the App Selection Page (currently SettingsActivity):
         *   [ ] 7.3.1. Modify app list display: Remove the current behavior of sorting selected apps to the top of the list (apps will appear in a single, alphabetically sorted list, filterable by search and selection status).
         *   [ ] 7.3.2. Implement search functionality: Add a search bar to allow users to filter the list of installed applications by name.

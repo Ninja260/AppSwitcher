@@ -17,11 +17,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+// import androidx.compose.material.icons.filled.ArrowBack // Remove if unused
+// import androidx.compose.material.icons.filled.ArrowForward // Remove if unused
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,20 +51,61 @@ data class AppEntry(val packageName: String, val label: String)
 // SharedPreferences constants
 private const val PREFS_NAME = "app_switcher_prefs"
 private const val KEY_SELECTED_APPS = "selected_app_packages"
-private const val KEY_APP_SWITCHER_ENABLED = "app_switcher_enabled" // ADDED
+private const val KEY_APP_SWITCHER_ENABLED = "app_switcher_enabled"
 
 // Helper function to get SharedPreferences instance
 private fun getPrefs(context: Context): SharedPreferences {
     return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 }
 
+// Enum to define the screens
+private enum class Screen {
+    Main,
+    AppSelection
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MyApplicationTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    MainSettingsScreen() // CHANGED from SettingsScreen()
+                var currentScreen by remember { mutableStateOf(Screen.Main) }
+
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    when (currentScreen) {
+                                        Screen.Main -> "App Switcher Settings"
+                                        Screen.AppSelection -> "Select Applications"
+                                    }
+                                )
+                            },
+                            navigationIcon = {
+                                if (currentScreen == Screen.AppSelection) {
+                                    IconButton(onClick = { currentScreen = Screen.Main }) {
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                                    }
+                                }
+                            }
+                        )
+                    }
+                ) { paddingValues ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        when (currentScreen) {
+                            Screen.Main -> MainSettingsScreen(
+                                onNavigateToAppSelection = { currentScreen = Screen.AppSelection }
+                            )
+                            Screen.AppSelection -> SettingsScreen()
+                        }
+                    }
                 }
             }
         }
@@ -62,18 +113,14 @@ class SettingsActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainSettingsScreen() {
+fun MainSettingsScreen(onNavigateToAppSelection: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { getPrefs(context) }
 
     var isSwitcherEnabled by remember {
-        // Default to true, so the service starts on first launch after this change if not set.
-        // Or consider defaulting to false if you want it off by default.
         mutableStateOf(prefs.getBoolean(KEY_APP_SWITCHER_ENABLED, true))
     }
 
-    // This LaunchedEffect will run once on composition and whenever isSwitcherEnabled changes.
-    // It's responsible for persisting the state and starting/stopping the service.
     LaunchedEffect(isSwitcherEnabled, context) {
         prefs.edit().putBoolean(KEY_APP_SWITCHER_ENABLED, isSwitcherEnabled).apply()
         val serviceIntent = Intent(context, FloatingActionService::class.java)
@@ -83,7 +130,6 @@ fun MainSettingsScreen() {
                 Log.d("MainSettingsScreen", "FloatingActionService explicitly started via switch.")
             } catch (e: Exception) {
                 Log.e("MainSettingsScreen", "Error starting FloatingActionService: ${e.message}", e)
-                // Optionally, revert isSwitcherEnabled or show an error to the user
             }
         } else {
             context.stopService(serviceIntent)
@@ -102,12 +148,20 @@ fun MainSettingsScreen() {
             Text("Enable App Switcher", style = MaterialTheme.typography.titleMedium)
             Switch(
                 checked = isSwitcherEnabled,
-                onCheckedChange = {
-                    isSwitcherEnabled = it
-                }
+                onCheckedChange = { isSwitcherEnabled = it }
             )
         }
-        // TODO: Add navigation item for "Selected Applications" here (Task 7.2.2)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onNavigateToAppSelection)
+                .padding(vertical = 16.dp), // Increased padding for better touch target
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Selected Applications", style = MaterialTheme.typography.titleMedium)
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Go to app selection")
+        }
     }
 }
 
@@ -130,10 +184,10 @@ fun SettingsScreen() {
                 packageManager.getApplicationLabel(appInfo).toString()
             } catch (e: Exception) {
                 Log.w("SettingsScreen", "Failed to get label for ${appInfo.packageName}", e)
-                appInfo.packageName
+                appInfo.packageName // Fallback to packageName if label fails
             }
             AppEntry(packageName = appInfo.packageName, label = label)
-        }.sortedBy { it.label }
+        }.sortedBy { it.label } // Already sorted alphabetically by label here
 
         Log.d("SettingsScreen", "Number of launchable app entries: ${launchableAppEntries.size}")
         launchableAppEntries
@@ -156,19 +210,14 @@ fun SettingsScreen() {
         context.startService(serviceIntent)
     }
 
-    val sortedDisplayApplications = remember(applications, selectedPackageNames) {
-        if (applications.isEmpty()) {
-            emptyList()
-        } else {
-            val (selectedApps, unselectedApps) = applications.partition { appEntry ->
-                appEntry.packageName in selectedPackageNames
-            }
-            selectedApps + unselectedApps
-        }
-    }
+    // MODIFIED: No longer partitioning selected and unselected.
+    // The `applications` list is already sorted alphabetically.
+    // The `SettingsScreenContent` will just display this list.
+    // The visual distinction of selected items comes from the Checkbox.
+    val displayApplications = applications // CHANGED
 
     SettingsScreenContent(
-        applications = sortedDisplayApplications,
+        applications = displayApplications, // CHANGED
         selectedPackageNames = selectedPackageNames,
         onSelectionChanged = { packageName, isSelected ->
             selectedPackageNames = if (isSelected) {
@@ -219,25 +268,39 @@ fun SettingsScreenContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class) 
 @Preview(showBackground = true)
 @Composable
-fun SettingsScreenPreview() {
+fun SettingsActivityPreview_Main() {
     MyApplicationTheme {
-        val previewApps = listOf(
-            AppEntry("com.example.app1", "App 1"),
-            AppEntry("com.example.app2", "Another Application Name"),
-            AppEntry("com.example.app3", "Yet Another App"),
-            AppEntry("com.example.app4", "Beta App")
-        ).sortedBy { it.label }
-
-        val selectedPreviewPackages = setOf("com.example.app1", "com.example.app4")
-        val (selected, unselected) = previewApps.partition { it.packageName in selectedPreviewPackages }
-        val sortedPreviewApps = selected + unselected
-
-        SettingsScreenContent(
-            applications = sortedPreviewApps,
-            selectedPackageNames = selectedPreviewPackages,
-            onSelectionChanged = { _, _ -> /* Do nothing in preview */ }
-        )
+        var currentScreen by remember { mutableStateOf(Screen.Main) }
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(if (currentScreen == Screen.Main) "App Switcher Settings" else "Select Applications") },
+                    navigationIcon = {
+                        if (currentScreen == Screen.AppSelection) {
+                            IconButton(onClick = { currentScreen = Screen.Main }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            }
+                        }
+                    }
+                )
+            }
+        ) { paddingValues ->
+            Surface(modifier = Modifier.padding(paddingValues)) {
+                when (currentScreen) {
+                    Screen.Main -> MainSettingsScreen(onNavigateToAppSelection = { currentScreen = Screen.AppSelection })
+                    Screen.AppSelection -> SettingsScreenContent(
+                        applications = listOf(
+                            AppEntry("com.example.app1", "App 1 (Selected)"),
+                            AppEntry("com.example.app2", "App 2 (Not Selected)")
+                        ),
+                        selectedPackageNames = setOf("com.example.app1"),
+                        onSelectionChanged = { _, _ -> }
+                    )
+                }
+            }
+        }
     }
 }
