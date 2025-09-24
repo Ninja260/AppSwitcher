@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,8 +41,7 @@ data class AppEntry(val packageName: String, val label: String)
 // SharedPreferences constants
 private const val PREFS_NAME = "app_switcher_prefs"
 private const val KEY_SELECTED_APPS = "selected_app_packages"
-
-// REMOVED: const val ACTION_REFRESH_FLOATING_VIEW = "com.example.myapplication.ACTION_REFRESH_FLOATING_VIEW"
+private const val KEY_APP_SWITCHER_ENABLED = "app_switcher_enabled" // ADDED
 
 // Helper function to get SharedPreferences instance
 private fun getPrefs(context: Context): SharedPreferences {
@@ -53,12 +54,63 @@ class SettingsActivity : ComponentActivity() {
         setContent {
             MyApplicationTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    SettingsScreen()
+                    MainSettingsScreen() // CHANGED from SettingsScreen()
                 }
             }
         }
     }
 }
+
+@Composable
+fun MainSettingsScreen() {
+    val context = LocalContext.current
+    val prefs = remember { getPrefs(context) }
+
+    var isSwitcherEnabled by remember {
+        // Default to true, so the service starts on first launch after this change if not set.
+        // Or consider defaulting to false if you want it off by default.
+        mutableStateOf(prefs.getBoolean(KEY_APP_SWITCHER_ENABLED, true))
+    }
+
+    // This LaunchedEffect will run once on composition and whenever isSwitcherEnabled changes.
+    // It's responsible for persisting the state and starting/stopping the service.
+    LaunchedEffect(isSwitcherEnabled, context) {
+        prefs.edit().putBoolean(KEY_APP_SWITCHER_ENABLED, isSwitcherEnabled).apply()
+        val serviceIntent = Intent(context, FloatingActionService::class.java)
+        if (isSwitcherEnabled) {
+            try {
+                context.startService(serviceIntent)
+                Log.d("MainSettingsScreen", "FloatingActionService explicitly started via switch.")
+            } catch (e: Exception) {
+                Log.e("MainSettingsScreen", "Error starting FloatingActionService: ${e.message}", e)
+                // Optionally, revert isSwitcherEnabled or show an error to the user
+            }
+        } else {
+            context.stopService(serviceIntent)
+            Log.d("MainSettingsScreen", "FloatingActionService explicitly stopped via switch.")
+        }
+    }
+
+    Column(modifier = Modifier.padding(16.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Enable App Switcher", style = MaterialTheme.typography.titleMedium)
+            Switch(
+                checked = isSwitcherEnabled,
+                onCheckedChange = {
+                    isSwitcherEnabled = it
+                }
+            )
+        }
+        // TODO: Add navigation item for "Selected Applications" here (Task 7.2.2)
+    }
+}
+
 
 @Composable
 fun SettingsScreen() {
@@ -97,9 +149,9 @@ fun SettingsScreen() {
             putStringSet(KEY_SELECTED_APPS, selectedPackageNames)
             apply()
         }
-        Log.d("SettingsScreen", "Sending intent to FloatingActionService to refresh: ${FloatingActionService.ACTION_REFRESH_FLOATING_VIEW}") // CHANGED
+        Log.d("SettingsScreen", "Sending intent to FloatingActionService to refresh: ${FloatingActionService.ACTION_REFRESH_FLOATING_VIEW}")
         val serviceIntent = Intent(context, FloatingActionService::class.java).apply {
-            action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW // CHANGED
+            action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
         }
         context.startService(serviceIntent)
     }
