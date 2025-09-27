@@ -25,15 +25,19 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 // Removed: import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
-private const val PREFS_NAME = "app_switcher_prefs"
-private const val KEY_SELECTED_APPS = "selected_app_packages"
-private const val KEY_FLOATING_X = "floating_x"
-private const val KEY_FLOATING_Y = "floating_y"
+// Moved KEY_FLOATING_X and KEY_FLOATING_Y to companion object for potential future shared use if needed
+// though they are currently only used internally by the service.
+// private const val KEY_FLOATING_X = "floating_x" // Now in companion
+// private const val KEY_FLOATING_Y = "floating_y" // Now in companion
 
 class FloatingActionService : Service() {
 
     companion object {
         const val ACTION_REFRESH_FLOATING_VIEW = "com.example.myapplication.ACTION_REFRESH_FLOATING_VIEW"
+        const val PREFS_NAME = "app_switcher_prefs"
+        const val KEY_SELECTED_APPS = "selected_app_packages"
+        const val KEY_FLOATING_X = "floating_x"
+        const val KEY_FLOATING_Y = "floating_y"
     }
 
     private val CHANNEL_ID = "FloatingActionServiceChannel"
@@ -187,10 +191,10 @@ class FloatingActionService : Service() {
                 currentFloatingView.addView(imageView)
             } catch (e: PackageManager.NameNotFoundException) {
                 Log.e(TAG, "App not found during icon refresh: $packageName. Removing.", e)
-                removeAppFromSwitcher(packageName, packageName)
+                removeAppFromSwitcher(packageName, packageName) // Pass packageName as label too for consistency in removal
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading icon/info for $packageName during icon refresh: ${e.message}", e)
-                removeAppFromSwitcher(packageName, packageName)
+                removeAppFromSwitcher(packageName, packageName) // Pass packageName as label too
             }
         }
     }
@@ -224,7 +228,7 @@ class FloatingActionService : Service() {
                     Log.d(TAG, "Floating view has parent, updating layout in onStartCommand. Pos: x=${params.x}, y=${params.y}")
                     windowManager.updateViewLayout(floatingView, params)
                 }
-                if (intent?.action != ACTION_REFRESH_FLOATING_VIEW) {
+                if (intent?.action != ACTION_REFRESH_FLOATING_VIEW) { // Avoid double refresh if action was already refresh
                     refreshAppIconsView()
                 }
             } catch (e: IllegalStateException) {
@@ -257,6 +261,8 @@ class FloatingActionService : Service() {
             Log.d(TAG, "startForeground called successfully.")
         } catch (e: Exception) {
             Log.e(TAG, "Error calling startForeground: ${e.message}", e)
+            // Consider stopping the service if startForeground fails criticaly,
+            // or at least ensure the floating view isn't shown.
         }
         return START_STICKY
     }
