@@ -245,7 +245,7 @@ class FloatingActionService : Service() {
             Log.d(TAG, "onStartCommand: Floating view already initialized and attached.")
         }
 
-        val notificationIntent = Intent(this, MainActivity::class.java)
+        val notificationIntent = Intent(this, SettingsActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
