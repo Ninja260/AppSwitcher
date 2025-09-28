@@ -18,24 +18,52 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.core.content.edit // Added for SharedPreferences KTX
+import androidx.core.content.edit
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -102,7 +130,11 @@ fun MainSettingsScreen(navController: NavController) {
         if (Settings.canDrawOverlays(context)) {
             Log.d("SettingsActivity", "Overlay permission granted.")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             } else {
                 startServiceLogic(context) { isServiceEnabled = it }
@@ -110,7 +142,11 @@ fun MainSettingsScreen(navController: NavController) {
         } else {
             Log.d("SettingsActivity", "Overlay permission NOT granted.")
             isServiceEnabled = false
-            Toast.makeText(context, "Overlay permission is required to display the app switcher.", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                context,
+                "Overlay permission is required to display the app switcher.",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
@@ -123,7 +159,11 @@ fun MainSettingsScreen(navController: NavController) {
         } else {
             Log.d("SettingsActivity", "Notification permission was denied.")
             isServiceEnabled = false
-            Toast.makeText(context, "Notification permission is required for the App Switcher service.", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                context,
+                "Notification permission is required for the App Switcher service.",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
@@ -166,13 +206,17 @@ fun MainSettingsScreen(navController: NavController) {
                                     Uri.parse("package:${context.packageName}")
                                 )
                                 overlayPermissionLauncher.launch(intent)
-                            }
-                            else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                ) != PackageManager.PERMISSION_GRANTED
+                            ) {
                                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            }
-                            else {
-                                startServiceLogic(context) { newState -> isServiceEnabled = newState }
+                            } else {
+                                startServiceLogic(context) { newState ->
+                                    isServiceEnabled = newState
+                                }
                             }
                         } else {
                             Log.d("SettingsActivity", "Disabling service via switch.")
@@ -212,7 +256,10 @@ fun MainSettingsScreen(navController: NavController) {
 private fun startServiceLogic(context: Context, updateSwitchState: (Boolean) -> Unit) {
     val hasOverlay = Settings.canDrawOverlays(context)
     val hasNotification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
     } else {
         true
     }
@@ -222,11 +269,19 @@ private fun startServiceLogic(context: Context, updateSwitchState: (Boolean) -> 
         startFloatingActionService(context)
         updateSwitchState(true)
     } else {
-        Log.w("SettingsActivity", "startServiceLogic called but permissions are missing. Overlay: $hasOverlay, Notification: $hasNotification")
+        Log.w(
+            "SettingsActivity",
+            "startServiceLogic called but permissions are missing. Overlay: $hasOverlay, Notification: $hasNotification"
+        )
         updateSwitchState(false)
-        if (!hasOverlay) Toast.makeText(context, "Overlay permission is required.", Toast.LENGTH_SHORT).show()
+        if (!hasOverlay) Toast.makeText(
+            context,
+            "Overlay permission is required.",
+            Toast.LENGTH_SHORT
+        ).show()
         if (!hasNotification && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Toast.makeText(context, "Notification permission is required.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Notification permission is required.", Toast.LENGTH_SHORT)
+                .show()
         }
     }
 }
@@ -267,9 +322,15 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
         context.getSharedPreferences(FloatingActionService.PREFS_NAME, Context.MODE_PRIVATE)
     }
     var selectedApps by remember {
-        mutableStateOf(sharedPreferences.getStringSet(FloatingActionService.KEY_SELECTED_APPS, emptySet()) ?: emptySet())
+        mutableStateOf(
+            sharedPreferences.getStringSet(
+                FloatingActionService.KEY_SELECTED_APPS,
+                emptySet()
+            ) ?: emptySet()
+        )
     }
     var searchQuery by remember { mutableStateOf("") }
+    var showOnlySelected by remember { mutableStateOf(false) }
 
     val allLaunchableApps = remember {
         val mainIntent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
@@ -286,16 +347,22 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
                 null
             }
         }
-        .filter { it.packageName != myPackageName } // Filter out the app itself
-        .distinctBy { it.packageName }
-        .sortedBy { it.label }
+            .filter { it.packageName != myPackageName } // Filter out the app itself
+            .distinctBy { it.packageName }
+            .sortedBy { it.label }
     }
 
-    val filteredApps = remember(searchQuery, allLaunchableApps) {
-        if (searchQuery.isBlank()) {
+    val filteredApps = remember(searchQuery, allLaunchableApps, showOnlySelected, selectedApps) {
+        val appsAfterSearch = if (searchQuery.isBlank()) {
             allLaunchableApps
         } else {
             allLaunchableApps.filter { it.label.contains(searchQuery, ignoreCase = true) }
+        }
+
+        if (showOnlySelected) {
+            appsAfterSearch.filter { selectedApps.contains(it.packageName) }
+        } else {
+            appsAfterSearch
         }
     }
 
@@ -308,16 +375,56 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp)
+                .padding(bottom = 8.dp) // Adjusted padding
         )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp), // Space after filter controls
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (showOnlySelected) "Showing Selected Apps" else "Showing All Apps",
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+            IconButton(onClick = { showOnlySelected = !showOnlySelected }) {
+                Icon(
+                    imageVector = Icons.Filled.FilterList,
+                    contentDescription = "Toggle app filter",
+                    tint = if (showOnlySelected) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                )
+            }
+        }
 
         if (allLaunchableApps.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No launchable applications were found on this device.")
+                Text(
+                    "No launchable applications were found on this device.",
+                    textAlign = TextAlign.Center,
+                )
             }
         } else if (filteredApps.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No applications found matching your search: \"$searchQuery\"")
+                val text = if (showOnlySelected) {
+                    if (selectedApps.isEmpty()) {
+                        "No apps are selected. Disable the filter or select some apps."
+                    } else if (searchQuery.isNotBlank()) {
+                        "No selected apps match your search: \"$searchQuery\""
+                    } else {
+                        "No selected apps found."
+                    }
+                } else { // Not showing only selected (i.e., showing all, but filtered by search)
+                    if (searchQuery.isNotBlank()) {
+                        "No applications found matching your search: \"$searchQuery\""
+                    } else {
+                        // This case should ideally not be reached if allLaunchableApps is not empty.
+                        "No applications found."
+                    }
+                }
+                Text(text, textAlign = TextAlign.Center)
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -333,15 +440,22 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
                                 currentSelection.remove(packageName)
                             }
                             selectedApps = currentSelection
-                            
-                            sharedPreferences.edit(commit = true) {
-                                putStringSet(FloatingActionService.KEY_SELECTED_APPS, currentSelection)
-                            }
-                            Log.d("SettingsActivity", "Committed to SharedPreferences. Selection: $currentSelection. Is empty: ${currentSelection.isEmpty()}.")
 
-                            val serviceIntent = Intent(context, FloatingActionService::class.java).apply {
-                                action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
+                            sharedPreferences.edit(commit = true) {
+                                putStringSet(
+                                    FloatingActionService.KEY_SELECTED_APPS,
+                                    currentSelection
+                                )
                             }
+                            Log.d(
+                                "SettingsActivity",
+                                "Committed to SharedPreferences. Selection: $currentSelection. Is empty: ${currentSelection.isEmpty()}."
+                            )
+
+                            val serviceIntent =
+                                Intent(context, FloatingActionService::class.java).apply {
+                                    action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
+                                }
                             context.startService(serviceIntent)
                             Log.d("SettingsActivity", "Sent refresh intent to service.")
                         }
