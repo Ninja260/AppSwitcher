@@ -6,10 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.ActivityNotFoundException
-// Removed: import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-// Removed: import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.PixelFormat
@@ -18,22 +16,25 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import android.view.Gravity
+import android.view.View // Required for View.GONE and View.VISIBLE
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
-// Removed: import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
 class FloatingActionService : Service() {
 
     companion object {
-        const val ACTION_REFRESH_FLOATING_VIEW = "com.example.myapplication.ACTION_REFRESH_FLOATING_VIEW"
+        const val ACTION_REFRESH_FLOATING_VIEW =
+            "com.example.myapplication.ACTION_REFRESH_FLOATING_VIEW"
         const val PREFS_NAME = "app_switcher_prefs"
         const val KEY_SELECTED_APPS = "selected_app_packages"
         const val KEY_FLOATING_X = "floating_x"
         const val KEY_FLOATING_Y = "floating_y"
-        @Volatile var isServiceRunning: Boolean = false
+        // EXTRA_SELECTED_APPS removed
+        @Volatile
+        var isServiceRunning: Boolean = false
     }
 
     private val CHANNEL_ID = "FloatingActionServiceChannel"
@@ -53,7 +54,6 @@ class FloatingActionService : Service() {
         super.onCreate()
         Log.d(TAG, "onCreate called")
         createNotificationChannel()
-        // isServiceRunning will be set true in onStartCommand after startForeground
 
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -109,14 +109,14 @@ class FloatingActionService : Service() {
             editor.putStringSet(KEY_SELECTED_APPS, newSelectedApps).apply()
             Log.i(TAG, "$packageName removed from SharedPreferences.")
             Toast.makeText(applicationContext, "$appLabel removed from switcher.", Toast.LENGTH_LONG).show()
-            refreshAppIconsView()
+            refreshAppIconsView() // Call without arguments
         } else {
             Log.w(TAG, "$packageName was already removed or not found in SharedPreferences.")
-            refreshAppIconsView()
+            refreshAppIconsView() // Call without arguments
         }
     }
 
-    private fun refreshAppIconsView() {
+    private fun refreshAppIconsView() { // Parameter removed
         val currentFloatingView = floatingView ?: run {
             Log.e(TAG, "FloatingView is null, cannot refresh icons.")
             return
@@ -125,20 +125,18 @@ class FloatingActionService : Service() {
 
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val selectedAppPackagesSet = prefs.getStringSet(KEY_SELECTED_APPS, emptySet()) ?: emptySet()
-        Log.d(TAG, "Refreshing icons. Selected apps: $selectedAppPackagesSet")
+        Log.d(TAG, "Refresh: Reading from SharedPreferences. Selected apps: $selectedAppPackagesSet. Is empty: ${selectedAppPackagesSet.isEmpty()}")
 
         if (selectedAppPackagesSet.isEmpty()) {
-            Log.d(TAG, "No apps selected, removing padding from floating view.")
+            Log.d(TAG, "No apps selected, setting view to GONE.")
             currentFloatingView.setPadding(0, 0, 0, 0)
+            currentFloatingView.visibility = View.GONE // Then hide the view
+            return // Exit after hiding
         } else {
-            Log.d(TAG, "Apps selected, ensuring default padding for floating view.")
+            currentFloatingView.visibility = View.VISIBLE // Make sure it's visible if there are apps
+            Log.d(TAG, "Apps selected, ensuring default padding and visibility for floating view.")
             val paddingInPx = 8.dpToPx()
             currentFloatingView.setPadding(paddingInPx, paddingInPx, paddingInPx, paddingInPx)
-        }
-
-        if (selectedAppPackagesSet.isEmpty()) {
-            Log.d(TAG, "No apps selected to display in floating view.")
-            return
         }
 
         val localPackageManager = applicationContext.packageManager
@@ -186,7 +184,7 @@ class FloatingActionService : Service() {
                 currentFloatingView.addView(imageView)
             } catch (e: PackageManager.NameNotFoundException) {
                 Log.e(TAG, "App not found during icon refresh: $packageName. Removing.", e)
-                removeAppFromSwitcher(packageName, packageName)
+                removeAppFromSwitcher(packageName, packageName) 
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading icon/info for $packageName during icon refresh: ${e.message}", e)
                 removeAppFromSwitcher(packageName, packageName)
@@ -199,10 +197,13 @@ class FloatingActionService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand called. Intent Action: ${intent?.action}, Flags: $flags, StartId: $startId")
 
+        // Removed logic for extracting EXTRA_SELECTED_APPS
+
         if (intent?.action == ACTION_REFRESH_FLOATING_VIEW) {
-            Log.d(TAG, "Received refresh action in onStartCommand. Refreshing icons.")
+            Log.d(TAG, "Received refresh action in onStartCommand.")
             if (floatingView != null && floatingView?.windowToken != null) {
-                refreshAppIconsView()
+                Log.d(TAG, "Calling refreshAppIconsView from onStartCommand.")
+                refreshAppIconsView() // Call without arguments
             } else {
                 Log.w(TAG, "Refresh action received but view is not ready. Refresh will happen on view setup.")
             }
@@ -224,7 +225,7 @@ class FloatingActionService : Service() {
                     windowManager.updateViewLayout(floatingView, params)
                 }
                 if (intent?.action != ACTION_REFRESH_FLOATING_VIEW) { 
-                    refreshAppIconsView()
+                    refreshAppIconsView() // This call will use SharedPreferences if not a refresh action
                 }
             } catch (e: IllegalStateException) {
                 Log.e(TAG, "View already added or other issue in onStartCommand re-add: ${e.message}")
@@ -258,8 +259,7 @@ class FloatingActionService : Service() {
         } catch (e: Exception) {
             isServiceRunning = false
             Log.e(TAG, "Error calling startForeground: ${e.message}. isServiceRunning: $isServiceRunning", e)
-            // Consider stopping the service if startForeground fails criticaly
-            stopSelf() // Stop the service if it cannot run in the foreground
+            stopSelf()
         }
         return START_STICKY
     }

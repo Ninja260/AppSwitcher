@@ -34,12 +34,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit // Added for SharedPreferences KTX
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
+// No longer need java.util.ArrayList
 
 class SettingsActivity : ComponentActivity() {
 
@@ -90,7 +92,6 @@ private fun stopFloatingActionService(context: Context) {
 fun MainSettingsScreen(navController: NavController) {
     val context = LocalContext.current
 
-    // Initialize the switch state based on whether the service is currently running.
     var isServiceEnabled by remember { mutableStateOf(FloatingActionService.isServiceRunning) }
 
     lateinit var notificationPermissionLauncher: ManagedActivityResultLauncher<String, Boolean>
@@ -100,7 +101,6 @@ fun MainSettingsScreen(navController: NavController) {
     ) {
         if (Settings.canDrawOverlays(context)) {
             Log.d("SettingsActivity", "Overlay permission granted.")
-            // Now that overlay is granted, check for notification permission
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -109,8 +109,7 @@ fun MainSettingsScreen(navController: NavController) {
             }
         } else {
             Log.d("SettingsActivity", "Overlay permission NOT granted.")
-            isServiceEnabled = false // Keep switch off
-            // stopFloatingActionService(context) // Service should not be running if permissions were not granted by user action
+            isServiceEnabled = false
             Toast.makeText(context, "Overlay permission is required to display the app switcher.", Toast.LENGTH_LONG).show()
         }
     }
@@ -123,8 +122,7 @@ fun MainSettingsScreen(navController: NavController) {
             startServiceLogic(context) { isServiceEnabled = it }
         } else {
             Log.d("SettingsActivity", "Notification permission was denied.")
-            isServiceEnabled = false // Keep switch off
-            // stopFloatingActionService(context) // Service should not be running if permissions were not granted by user action
+            isServiceEnabled = false
             Toast.makeText(context, "Notification permission is required for the App Switcher service.", Toast.LENGTH_LONG).show()
         }
     }
@@ -162,7 +160,6 @@ fun MainSettingsScreen(navController: NavController) {
                     checked = isServiceEnabled,
                     onCheckedChange = { isChecked ->
                         if (isChecked) {
-                            // User wants to enable the service
                             if (!Settings.canDrawOverlays(context)) {
                                 val intent = Intent(
                                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -178,7 +175,6 @@ fun MainSettingsScreen(navController: NavController) {
                                 startServiceLogic(context) { newState -> isServiceEnabled = newState }
                             }
                         } else {
-                            // User wants to disable the service
                             Log.d("SettingsActivity", "Disabling service via switch.")
                             isServiceEnabled = false
                             stopFloatingActionService(context)
@@ -213,7 +209,6 @@ fun MainSettingsScreen(navController: NavController) {
     }
 }
 
-// A helper function to centralize the logic for starting the service and updating the switch state.
 private fun startServiceLogic(context: Context, updateSwitchState: (Boolean) -> Unit) {
     val hasOverlay = Settings.canDrawOverlays(context)
     val hasNotification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -225,11 +220,10 @@ private fun startServiceLogic(context: Context, updateSwitchState: (Boolean) -> 
     if (hasOverlay && hasNotification) {
         Log.d("SettingsActivity", "All permissions granted. Starting service.")
         startFloatingActionService(context)
-        updateSwitchState(true) // Service successfully started, update switch
+        updateSwitchState(true)
     } else {
         Log.w("SettingsActivity", "startServiceLogic called but permissions are missing. Overlay: $hasOverlay, Notification: $hasNotification")
-        updateSwitchState(false) // Permissions not met, ensure switch is off
-        // stopFloatingActionService(context) // Service should not be running if permissions aren't met
+        updateSwitchState(false)
         if (!hasOverlay) Toast.makeText(context, "Overlay permission is required.", Toast.LENGTH_SHORT).show()
         if (!hasNotification && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Toast.makeText(context, "Notification permission is required.", Toast.LENGTH_SHORT).show()
@@ -310,13 +304,21 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
                             currentSelection.remove(packageName)
                         }
                         selectedApps = currentSelection
-                        // Save to SharedPreferences and notify the service
-                        sharedPreferences.edit().putStringSet(FloatingActionService.KEY_SELECTED_APPS, currentSelection).apply()
+                        
+                        // Save to SharedPreferences synchronously
+                        sharedPreferences.edit(commit = true) { // KTX for synchronous commit
+                            putStringSet(FloatingActionService.KEY_SELECTED_APPS, currentSelection)
+                        }
+                        // Log after committing to SharedPreferences
+                        Log.d("SettingsActivity", "Committed to SharedPreferences. Selection: $currentSelection. Is empty: ${currentSelection.isEmpty()}.")
+
                         val serviceIntent = Intent(context, FloatingActionService::class.java).apply {
                             action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
+                            // No longer adding EXTRA_SELECTED_APPS
                         }
                         context.startService(serviceIntent)
-                        Log.d("SettingsActivity", "Saved apps and sent refresh intent. Selected: $currentSelection")
+                        // Log after sending the intent
+                        Log.d("SettingsActivity", "Sent refresh intent to service.")
                     }
                 )
             }

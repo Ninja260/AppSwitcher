@@ -1,5 +1,6 @@
 package com.example.myapplication
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Point // For screen dimensions
@@ -10,6 +11,7 @@ import android.view.MotionEvent
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.LinearLayout
+import androidx.core.content.edit
 
 class DraggableLinearLayout @JvmOverloads constructor(
     context: Context,
@@ -101,6 +103,7 @@ class DraggableLinearLayout @JvmOverloads constructor(
         return false
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!this::windowManager.isInitialized) {
             Log.w(TAG, "onTouchEvent: WindowManager not initialized")
@@ -175,10 +178,10 @@ class DraggableLinearLayout @JvmOverloads constructor(
                     }
 
                     // Save the (potentially docked) position
-                    sharedPreferences.edit()
-                        .putInt(prefsKeyX, params.x)
-                        .putInt(prefsKeyY, params.y) // Y hasn't changed in this logic
-                        .apply()
+                    sharedPreferences.edit {
+                        putInt(prefsKeyX, params.x)
+                            .putInt(prefsKeyY, params.y) // Y hasn't changed in this logic
+                    }
                     Log.i(TAG, "Saved docked position: x=${params.x}, y=${params.y}")
                     isDragging = false
                     return true
@@ -192,5 +195,9 @@ class DraggableLinearLayout @JvmOverloads constructor(
             }
         }
         return super.onTouchEvent(event)
+    }
+
+    override fun performClick(): Boolean {
+        return super.performClick()
     }
 }
