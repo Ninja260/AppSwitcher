@@ -36,7 +36,8 @@ class FloatingActionService : Service() {
         const val KEY_FLOATING_X = "floating_x"
         const val KEY_FLOATING_Y = "floating_y"
         const val KEY_FLOATING_ALPHA = "floating_alpha"
-        const val KEY_FLOATING_ICON_SIZE = "floating_icon_size" // New key for icon size
+        const val KEY_FLOATING_ICON_SIZE = "floating_icon_size"
+        const val KEY_MAX_DOCK_APPS = "max_dock_apps" // New key for max dockable apps
         @Volatile
         var isServiceRunning: Boolean = false
     }
@@ -142,7 +143,8 @@ class FloatingActionService : Service() {
         currentFloatingView.removeAllViews()
 
         val selectedAppPackagesSet = prefs.getStringSet(KEY_SELECTED_APPS, emptySet()) ?: emptySet()
-        Log.d(TAG, "Refresh: Reading from SharedPreferences. Selected apps: $selectedAppPackagesSet. Is empty: ${selectedAppPackagesSet.isEmpty()}")
+        val maxDockApps = prefs.getInt(KEY_MAX_DOCK_APPS, 4)
+        Log.d(TAG, "Refresh: Selected apps: $selectedAppPackagesSet (Max: $maxDockApps)")
 
         if (selectedAppPackagesSet.isEmpty()) {
             Log.d(TAG, "No apps selected, setting view to GONE.")
@@ -157,13 +159,14 @@ class FloatingActionService : Service() {
         }
 
         val localPackageManager = applicationContext.packageManager
-        // Get icon size in dp from prefs, default to 48dp, then convert to px
         val iconSizeInDp = prefs.getInt(KEY_FLOATING_ICON_SIZE, 48)
         val iconSizeInPx = iconSizeInDp.dpToPx()
 
-        val selectedAppPackagesList = selectedAppPackagesSet.toList()
+        // Take only the first `maxDockApps` from the sorted list (if actual sorting is implemented later)
+        // For now, it takes from the set's arbitrary order up to the limit.
+        val appsToDisplayList = selectedAppPackagesSet.toList().take(maxDockApps)
 
-        selectedAppPackagesList.forEachIndexed { index, packageName ->
+        appsToDisplayList.forEachIndexed { index, packageName ->
             try {
                 val appInfo = localPackageManager.getApplicationInfo(packageName, 0)
                 val appLabel = localPackageManager.getApplicationLabel(appInfo).toString()
@@ -172,8 +175,8 @@ class FloatingActionService : Service() {
                 val imageView = ImageView(this).apply {
                     setImageDrawable(appIcon)
                     layoutParams = LinearLayout.LayoutParams(iconSizeInPx, iconSizeInPx).apply {
-                        if (index < selectedAppPackagesList.lastIndex) {
-                            bottomMargin = 8.dpToPx() // Keep consistent bottom margin
+                        if (index < appsToDisplayList.lastIndex) { // Adjust for potentially shorter list
+                            bottomMargin = 8.dpToPx()
                         }
                     }
                     contentDescription = appLabel

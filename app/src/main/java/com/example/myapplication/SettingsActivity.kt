@@ -162,6 +162,10 @@ fun MainSettingsScreen(navController: NavController) {
         mutableFloatStateOf(sharedPreferences.getInt(FloatingActionService.KEY_FLOATING_ICON_SIZE, 48).toFloat())
     }
 
+    var currentMaxDockApps by remember {
+        mutableFloatStateOf(sharedPreferences.getInt(FloatingActionService.KEY_MAX_DOCK_APPS, 4).toFloat())
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -171,6 +175,7 @@ fun MainSettingsScreen(navController: NavController) {
                 )?.size ?: 0
                 currentAlpha = sharedPreferences.getFloat(FloatingActionService.KEY_FLOATING_ALPHA, 1.0f)
                 currentIconSizeDp = sharedPreferences.getInt(FloatingActionService.KEY_FLOATING_ICON_SIZE, 48).toFloat()
+                currentMaxDockApps = sharedPreferences.getInt(FloatingActionService.KEY_MAX_DOCK_APPS, 4).toFloat()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -190,6 +195,9 @@ fun MainSettingsScreen(navController: NavController) {
                 }
                 FloatingActionService.KEY_FLOATING_ICON_SIZE -> {
                     currentIconSizeDp = prefs.getInt(key, 48).toFloat()
+                }
+                FloatingActionService.KEY_MAX_DOCK_APPS -> {
+                    currentMaxDockApps = prefs.getInt(key, 4).toFloat()
                 }
             }
         }
@@ -434,12 +442,61 @@ fun MainSettingsScreen(navController: NavController) {
                             Log.d("SettingsActivity", "Icon size changed, sent refresh intent.")
                         }
                     },
-                    valueRange = 32f..64f, // e.g., 32dp to 64dp
-                    steps = 15, // (64-32)/2 - 1 = 15 steps for 2dp increments (16 points)
+                    valueRange = 32f..64f,
+                    steps = 15, 
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
                     text = "Controls the size of app icons in the floating action.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                )
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                thickness = DividerDefaults.Thickness,
+                color = DividerDefaults.color
+            )
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Max Dockable Apps",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "${currentMaxDockApps.roundToInt()} apps",
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+                Slider(
+                    value = currentMaxDockApps,
+                    onValueChange = { newValue ->
+                        currentMaxDockApps = newValue
+                    },
+                    onValueChangeFinished = {
+                        sharedPreferences.edit {
+                            putInt(FloatingActionService.KEY_MAX_DOCK_APPS, currentMaxDockApps.roundToInt())
+                        }
+                        if (FloatingActionService.isServiceRunning) {
+                            val intent = Intent(context, FloatingActionService::class.java).apply {
+                                action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
+                            }
+                            context.startService(intent)
+                            Log.d("SettingsActivity", "Max dock apps changed, sent refresh intent.")
+                        }
+                    },
+                    valueRange = 2f..4f, 
+                    steps = 1, // Allows 2, 3, 4
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = "Controls the maximum number of apps shown in the floating action (2-4 apps).",
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                 )
@@ -567,6 +624,9 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
     var searchQuery by remember { mutableStateOf("") }
     var showOnlySelected by remember { mutableStateOf(false) }
 
+    // Read the max dock apps limit from SharedPreferences
+    val maxDockApps = sharedPreferences.getInt(FloatingActionService.KEY_MAX_DOCK_APPS, 4)
+
     val allLaunchableApps = remember {
         val mainIntent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
         val myPackageName = context.packageName
@@ -666,11 +726,19 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
                     AppListItem(
                         app = app,
                         isSelected = selectedApps.contains(app.packageName),
-                        onSelectionChanged = { packageName, isSelected ->
+                        onSelectionChanged = { packageName, isSelected -> // `isSelected` here is the NEW state
                             val currentSelection = selectedApps.toMutableSet()
-                            if (isSelected) {
+                            if (isSelected) { // Trying to add an app
+                                if (currentSelection.size >= maxDockApps) {
+                                    Toast.makeText(
+                                        context,
+                                        "Maximum of $maxDockApps apps already selected. Please deselect an app first.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    return@AppListItem // Do not proceed to add
+                                }
                                 currentSelection.add(packageName)
-                            } else {
+                            } else { // Trying to remove an app
                                 currentSelection.remove(packageName)
                             }
                             selectedApps = currentSelection
@@ -716,7 +784,7 @@ fun AppListItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onSelectionChanged(app.packageName, !isSelected) }
+            .clickable { onSelectionChanged(app.packageName, !isSelected) } // !isSelected means the desired new state
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Image(
@@ -729,7 +797,9 @@ fun AppListItem(
             text = app.label, modifier = Modifier.weight(1f)
         )
         Checkbox(
-            checked = isSelected, onCheckedChange = { onSelectionChanged(app.packageName, it) })
+            checked = isSelected, // current state
+            onCheckedChange = { newSelectionState -> onSelectionChanged(app.packageName, newSelectionState) }
+        )
     }
 }
 
