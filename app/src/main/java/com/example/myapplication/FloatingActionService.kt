@@ -35,6 +35,7 @@ class FloatingActionService : Service() {
         const val KEY_SELECTED_APPS = "selected_app_packages"
         const val KEY_FLOATING_X = "floating_x"
         const val KEY_FLOATING_Y = "floating_y"
+        const val KEY_FLOATING_ALPHA = "floating_alpha" // New key for transparency
         @Volatile
         var isServiceRunning: Boolean = false
     }
@@ -76,11 +77,13 @@ class FloatingActionService : Service() {
             gravity = Gravity.TOP or Gravity.START
             x = prefs.getInt(KEY_FLOATING_X, 0)
             y = prefs.getInt(KEY_FLOATING_Y, 100)
+            // Alpha will be applied in refreshAppIconsView or when view is created
         }
 
         floatingView = DraggableLinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor("#80000000".toColorInt())
+            // Initial background color with full alpha, actual alpha will be applied dynamically
+            setBackgroundColor("#80000000".toColorInt()) 
             val initialPadding = 8.dpToPx()
             setPadding(initialPadding, initialPadding, initialPadding, initialPadding)
             setWindowManagerParams(windowManager, params, prefs, KEY_FLOATING_X, KEY_FLOATING_Y)
@@ -94,12 +97,19 @@ class FloatingActionService : Service() {
                 Log.d(TAG, "Floating view already has window token, updating layout. Params: x=${params.x}, y=${params.y}")
                 windowManager.updateViewLayout(floatingView, params)
             }
+            // Apply initial alpha after view is added
+            applyAlphaToFloatingView(prefs.getFloat(KEY_FLOATING_ALPHA, 1.0f))
         } catch (e: Exception) {
             Log.e(TAG, "Error adding/updating view in WindowManager: ${e.message}", e)
             floatingView = null // Nullify if adding failed
         }
-        // Initial refresh will be handled by the first onStartCommand or if service is explicitly started
-        // refreshAppIconsView() // Removed from here
+    }
+
+    private fun applyAlphaToFloatingView(alpha: Float) {
+        floatingView?.alpha = alpha
+        // Optionally, if you want the background to also have its alpha component scaled:
+        // floatingView?.background?.alpha = (255 * alpha).toInt()
+        // For DraggableLinearLayout, the alpha on the view itself should be sufficient.
     }
 
     private fun removeAppFromSwitcher(packageName: String, appLabel: String) {
@@ -125,6 +135,9 @@ class FloatingActionService : Service() {
             return
         }
 
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        applyAlphaToFloatingView(prefs.getFloat(KEY_FLOATING_ALPHA, 1.0f))
+
         if (isUiSuppressed) {
             Log.d(TAG, "UI is suppressed, setting view to GONE.")
             currentFloatingView.visibility = View.GONE
@@ -133,7 +146,6 @@ class FloatingActionService : Service() {
 
         currentFloatingView.removeAllViews()
 
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val selectedAppPackagesSet = prefs.getStringSet(KEY_SELECTED_APPS, emptySet()) ?: emptySet()
         Log.d(TAG, "Refresh: Reading from SharedPreferences. Selected apps: $selectedAppPackagesSet. Is empty: ${selectedAppPackagesSet.isEmpty()}")
 
@@ -169,6 +181,7 @@ class FloatingActionService : Service() {
                     contentDescription = appLabel
                     isClickable = true
                     isFocusable = true
+                    // Alpha for individual icons is managed by the parent floatingView's alpha
 
                     setOnClickListener {
                         Log.d(TAG, "Icon tapped for $packageName ($appLabel)")
@@ -197,7 +210,6 @@ class FloatingActionService : Service() {
                 removeAppFromSwitcher(packageName, packageName) 
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading icon/info for $packageName during icon refresh: ${e.message}", e)
-                // Potentially remove, but be cautious of loop modifying underlying list indirectly
             }
         }
     }
@@ -206,6 +218,7 @@ class FloatingActionService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand called. Intent Action: ${intent?.action}, Flags: $flags, StartId: $startId")
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         when (intent?.action) {
             ACTION_SUPPRESS_UI -> {
@@ -219,6 +232,7 @@ class FloatingActionService : Service() {
                 Log.d(TAG, "Received ACTION_UNSUPPRESS_UI")
                 isUiSuppressed = false
                 if (isServiceRunning) {
+                    applyAlphaToFloatingView(prefs.getFloat(KEY_FLOATING_ALPHA, 1.0f))
                     refreshAppIconsView()
                 }
             }
@@ -227,6 +241,7 @@ class FloatingActionService : Service() {
                 if (isServiceRunning) {
                     if (floatingView != null && floatingView?.windowToken != null) {
                         Log.d(TAG, "Calling refreshAppIconsView for ACTION_REFRESH_FLOATING_VIEW.")
+                        applyAlphaToFloatingView(prefs.getFloat(KEY_FLOATING_ALPHA, 1.0f))
                         refreshAppIconsView()
                     } else {
                         Log.w(TAG, "Refresh action received but view is not ready.")
@@ -239,14 +254,12 @@ class FloatingActionService : Service() {
                 Log.d(TAG, "Null action: Explicit service start command.")
                 isUiSuppressed = false // Ensure UI is not suppressed on explicit start
 
-                // Ensure view is properly initialized or re-added if necessary
                 if (floatingView == null) {
                      Log.e(TAG, "Start command: floatingView is null. Service cannot function. Stopping.")
                      stopSelf()
                      return START_NOT_STICKY
                 } else if (floatingView?.windowToken == null) {
                     Log.w(TAG, "Start command: floatingView exists but not attached. Attempting to re-add.")
-                    val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                     params.x = prefs.getInt(KEY_FLOATING_X, params.x)
                     params.y = prefs.getInt(KEY_FLOATING_Y, params.y)
                     try {
@@ -255,15 +268,16 @@ class FloatingActionService : Service() {
                         } else {
                             windowManager.updateViewLayout(floatingView, params)
                         }
+                         applyAlphaToFloatingView(prefs.getFloat(KEY_FLOATING_ALPHA, 1.0f))
                     } catch (e: Exception) {
                         Log.e(TAG, "Error re-adding/updating view in Start command: ${e.message}", e)
-                        // If view cannot be added, the service cannot function as intended.
                         stopSelf()
                         return START_NOT_STICKY
                     }
                 }
                 
-                refreshAppIconsView() // Refresh icons and visibility based on current state
+                applyAlphaToFloatingView(prefs.getFloat(KEY_FLOATING_ALPHA, 1.0f))
+                refreshAppIconsView() 
 
                 val notificationIntent = Intent(this, SettingsActivity::class.java)
                 val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)

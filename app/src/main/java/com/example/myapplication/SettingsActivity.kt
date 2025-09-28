@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -44,6 +45,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -53,6 +55,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -75,6 +78,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
+import kotlin.math.roundToInt
 
 class SettingsActivity : ComponentActivity() {
 
@@ -150,6 +154,10 @@ fun MainSettingsScreen(navController: NavController) {
         )
     }
 
+    var currentAlpha by remember {
+        mutableFloatStateOf(sharedPreferences.getFloat(FloatingActionService.KEY_FLOATING_ALPHA, 1.0f))
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -157,6 +165,7 @@ fun MainSettingsScreen(navController: NavController) {
                 selectedAppCount = sharedPreferences.getStringSet(
                     FloatingActionService.KEY_SELECTED_APPS, emptySet()
                 )?.size ?: 0
+                currentAlpha = sharedPreferences.getFloat(FloatingActionService.KEY_FLOATING_ALPHA, 1.0f)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -169,6 +178,11 @@ fun MainSettingsScreen(navController: NavController) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
             if (key == FloatingActionService.KEY_SELECTED_APPS) {
                 selectedAppCount = prefs.getStringSet(key, emptySet())?.size ?: 0
+            }
+            if (key == FloatingActionService.KEY_FLOATING_ALPHA) {
+                // Update currentAlpha only if the change didn't originate from this screen's slider
+                // to avoid recomposition loop. However, simple update is fine for now.
+                currentAlpha = prefs.getFloat(key, 1.0f)
             }
         }
         sharedPreferences.registerOnSharedPreferenceChangeListener(listener)
@@ -239,7 +253,7 @@ fun MainSettingsScreen(navController: NavController) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 8.dp), // Add padding to the bottom of the row
+                    .padding(bottom = 8.dp), 
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -247,7 +261,7 @@ fun MainSettingsScreen(navController: NavController) {
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 8.dp)
-                ) { // Column takes available space, adds padding to its right
+                ) { 
                     Text(
                         text = "Enable App Switcher",
                         fontSize = 18.sp,
@@ -259,7 +273,7 @@ fun MainSettingsScreen(navController: NavController) {
                         modifier = Modifier.padding(
                             start = 4.dp,
                             top = 8.dp,
-                        ) // Removed bottom padding as Row now has it
+                        ) 
                     )
                 }
                 Switch(
@@ -298,14 +312,13 @@ fun MainSettingsScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { navController.navigate("app_selection") }
-                    .padding(vertical = 8.dp), // Padding for the entire row
+                    .padding(vertical = 8.dp), 
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween) {
-                // Column for the texts on the left
                 Column(
                     modifier = Modifier
-                        .weight(1f) // Allows the column to take available space, pushing icon to the end
-                        .padding(end = 8.dp) // Optional padding between text column and icon
+                        .weight(1f) 
+                        .padding(end = 8.dp) 
                 ) {
                     Text(
                         text = "Selected Applications",
@@ -317,14 +330,61 @@ fun MainSettingsScreen(navController: NavController) {
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(
                             start = 4.dp, top = 8.dp
-                        ) // Adjusted top padding slightly for better spacing
+                        ) 
                     )
                 }
-
-                // Icon on the right
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = "Select applications"
+                )
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                thickness = DividerDefaults.Thickness,
+                color = DividerDefaults.color
+            )
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) { // Added bottom padding to the column
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Floating Action Transparency",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "${(currentAlpha * 100).roundToInt()}%",
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+                Slider(
+                    value = currentAlpha,
+                    onValueChange = { newValue ->
+                        currentAlpha = newValue
+                    },
+                    onValueChangeFinished = {
+                        sharedPreferences.edit {
+                            putFloat(FloatingActionService.KEY_FLOATING_ALPHA, currentAlpha)
+                        }
+                        if (FloatingActionService.isServiceRunning) {
+                            val intent = Intent(context, FloatingActionService::class.java).apply {
+                                action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
+                            }
+                            context.startService(intent)
+                            Log.d("SettingsActivity", "Alpha changed, sent refresh intent.")
+                        }
+                    },
+                    valueRange = 0.2f..1.0f, // Min alpha 20%
+                    steps = 7, // (1.0 - 0.2) / 0.1 = 8 steps. steps = n-1 where n is number of points. So 7 makes 8 points (0.2, 0.3...1.0)
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = "Controls the see-through level of the floating action.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp) // Added padding
                 )
             }
         }
@@ -477,7 +537,8 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
 
         if (showOnlySelected) {
             appsAfterSearch.filter { selectedApps.contains(it.packageName) }
-        } else {
+        }
+        else {
             appsAfterSearch
         }
     }
@@ -536,6 +597,7 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
                     if (searchQuery.isNotBlank()) {
                         "No applications found matching your search: \"$searchQuery\""
                     } else {
+                        // This case should ideally not be reached if allLaunchableApps is not empty.
                         "No applications found."
                     }
                 }
