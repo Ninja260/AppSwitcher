@@ -56,8 +56,8 @@ For each item in this TODO list:
 *   **[ ] 8. Features for usability**
     *   [ ] 8.1. Transparency of app icons in floating action
         *   [ ] 8.1.1. Slider to adjust transparency on main setting page. The slider value will be stored to permanent storage.
-        *   [ ] 8.1.2. Apply transparency to app icons.
-        *   [ ] 8.1.3. Slider transparency value will reflect to the app icons on the floating actions with real time.
+        *   [ ] 8.1.2. Apply transparency to app icons and the floating action parent.
+        *   [ ] 8.1.3. Slider transparency value will reflect to the app icons and the floating actions with real time.
     *   [ ] 8.2. Set floating action app icons size
         *   [ ] 8.2.1. Slider to adjust size on main setting page. The slider value will be stored to permanent storage.
         *   [ ] 8.2.2. Apply size to app icons.
