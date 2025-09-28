@@ -58,10 +58,10 @@ For each item in this TODO list:
         *   [X] 8.1.1. Slider to adjust transparency on main setting page. The slider value will be stored to permanent storage.
         *   [X] 8.1.2. Apply transparency to app icons and the floating action parent.
         *   [X] 8.1.3. Slider transparency value will reflect to the app icons and the floating actions with real time.
-    *   [ ] 8.2. Set floating action app icons size
-        *   [ ] 8.2.1. Slider to adjust size on main setting page. The slider value will be stored to permanent storage.
-        *   [ ] 8.2.2. Apply size to app icons.
-        *   [ ] 8.2.3. Slider size value will reflect to the app icons on the floating actions with real time.
+    *   **[X] 8.2. Set floating action app icons size**
+        *   [X] 8.2.1. Slider to adjust size on main setting page. The slider value will be stored to permanent storage.
+        *   [X] 8.2.2. Apply size to app icons.
+        *   [X] 8.2.3. Slider size value will reflect to the app icons on the floating actions with real time.
     *   [ ] 8.3. Set max numbers of selectable applications
         *   [ ] 8.3.1. Slider to adjust max number on main setting page. The slider value will be stored to permanent storage. The value can only be 2, 3 or 4.
         *   [ ] 8.3.2. Apply max number to app icons.
