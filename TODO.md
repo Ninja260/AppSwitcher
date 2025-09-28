@@ -16,7 +16,7 @@ For each item in this TODO list:
 *   **[X] 1. Project Setup & Basic Structure**
     *   [X] 1.1. Confirm target Android SDK versions. (See NOTICE.md for implications)
     *   [X] 1.2. Set up necessary permissions in `AndroidManifest.xml` (e.g., `SYSTEM_ALERT_WINDOW`). (See NOTICE.md)
-*   **[ ] 2. Floating Action Service**
+*   **[X] 2. Floating Action Service**
     *   [X] 2.1. Create a foreground service to manage the floating action. (See NOTICE.md regarding foreground service requirements)
     *   [X] 2.2. Implement logic to request "Display over other apps" permission from the user. (See NOTICE.md regarding SYSTEM_ALERT_WINDOW)
     *   [X] 2.3. Design and implement the basic visual appearance of the floating action (e.g., a simple button or small panel).
@@ -26,7 +26,7 @@ For each item in this TODO list:
     *   [X] 3.3. Allow users to select multiple apps from the list.
     *   [X] 3.4. Store the list of user-selected apps persistently (e.g., using SharedPreferences or a simple database).
     *   [X] 3.5. Show the selected apps at the top of the list in the settings screen.
-*   **[ ] 4. Displaying App Shortcuts in Floating Action**
+*   **[X] 4. Displaying App Shortcuts in Floating Action**
     *   [X] 4.1. The floating action service should read the saved list of selected apps.
     *   [X] 4.2. Dynamically display icons of the selected apps within the floating action interface.
     *   [X] 4.3. Ensure icons are clear and identifiable.
