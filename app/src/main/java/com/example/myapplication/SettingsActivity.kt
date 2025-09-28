@@ -272,6 +272,7 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
 
     val launchableApps = remember {
         val mainIntent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
+        val myPackageName = context.packageName // Get app's own package name
         packageManager.queryIntentActivities(mainIntent, 0).mapNotNull {
             try {
                 val appInfo = packageManager.getApplicationInfo(it.activityInfo.packageName, 0)
@@ -283,7 +284,10 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
             } catch (e: PackageManager.NameNotFoundException) {
                 null
             }
-        }.distinctBy { it.packageName }.sortedBy { it.label }
+        }
+        .filter { it.packageName != myPackageName } // Filter out the app itself
+        .distinctBy { it.packageName }
+        .sortedBy { it.label }
     }
 
     if (launchableApps.isEmpty()) {
