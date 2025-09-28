@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.PixelFormat
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -80,8 +81,19 @@ class FloatingActionService : Service() {
 
         floatingView = DraggableLinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor("#80000000".toColorInt()) 
-            val initialPadding = 8.dpToPx()
+            
+            // Make corner radius proportional to icon size
+            val iconSizeInDp = prefs.getInt(KEY_FLOATING_ICON_SIZE, 48)
+            val cornerRadiusInDp = iconSizeInDp / 3 // Proportion: 1/3 of icon size
+            val cornerRadiusInPx = cornerRadiusInDp.dpToPx().toFloat()
+
+            val backgroundDrawable = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor("#80000000".toColorInt()) // Set background color
+                setCornerRadius(cornerRadiusInPx)      // Set proportional corner radius
+            }
+            background = backgroundDrawable         // Apply the drawable as background
+            val initialPadding = (cornerRadiusInDp / 2).coerceAtLeast(8).dpToPx() // Adjust padding based on radius, with a minimum
             setPadding(initialPadding, initialPadding, initialPadding, initialPadding)
             setWindowManagerParams(windowManager, params, prefs, KEY_FLOATING_X, KEY_FLOATING_Y)
         }
@@ -145,13 +157,33 @@ class FloatingActionService : Service() {
 
         if (selectedAppPackagesSet.isEmpty()) {
             Log.d(tagName, "No apps selected, setting view to GONE.")
-            currentFloatingView.setPadding(0, 0, 0, 0)
+            // Update background and padding if corner radius might have changed and no apps are shown
+            val iconSizeInDpOnEmpty = prefs.getInt(KEY_FLOATING_ICON_SIZE, 48)
+            val cornerRadiusInDpOnEmpty = iconSizeInDpOnEmpty / 3
+            val cornerRadiusInPxOnEmpty = cornerRadiusInDpOnEmpty.dpToPx().toFloat()
+            val backgroundDrawableOnEmpty = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor("#00000000".toColorInt()) // Transparent when empty if desired, or keep semi-transparent
+                setCornerRadius(cornerRadiusInPxOnEmpty)
+            }
+            currentFloatingView.background = backgroundDrawableOnEmpty
+            currentFloatingView.setPadding(0, 0, 0, 0) // No padding when empty
             currentFloatingView.visibility = View.GONE
             return
         } else {
             currentFloatingView.visibility = View.VISIBLE
             Log.d(tagName, "Apps selected, ensuring default padding and visibility for floating view.")
-            val paddingInPx = 8.dpToPx()
+            // Update background and padding if corner radius might have changed
+            val iconSizeInDp = prefs.getInt(KEY_FLOATING_ICON_SIZE, 48)
+            val cornerRadiusInDp = iconSizeInDp / 3
+            val cornerRadiusInPx = cornerRadiusInDp.dpToPx().toFloat()
+            val backgroundDrawable = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor("#80000000".toColorInt())
+                setCornerRadius(cornerRadiusInPx)
+            }
+            currentFloatingView.background = backgroundDrawable
+            val paddingInPx = (cornerRadiusInDp / 2).coerceAtLeast(8).dpToPx()
             currentFloatingView.setPadding(paddingInPx, paddingInPx, paddingInPx, paddingInPx)
         }
 
@@ -159,8 +191,6 @@ class FloatingActionService : Service() {
         val iconSizeInDp = prefs.getInt(KEY_FLOATING_ICON_SIZE, 48)
         val iconSizeInPx = iconSizeInDp.dpToPx()
 
-        // Take only the first `maxDockApps` from the sorted list (if actual sorting is implemented later)
-        // For now, it takes from the set's arbitrary order up to the limit.
         val appsToDisplayList = selectedAppPackagesSet.toList().take(maxDockApps)
 
         appsToDisplayList.forEachIndexed { index, packageName ->
@@ -172,8 +202,8 @@ class FloatingActionService : Service() {
                 val imageView = ImageView(this).apply {
                     setImageDrawable(appIcon)
                     layoutParams = LinearLayout.LayoutParams(iconSizeInPx, iconSizeInPx).apply {
-                        if (index < appsToDisplayList.lastIndex) { // Adjust for potentially shorter list
-                            bottomMargin = 8.dpToPx()
+                        if (index < appsToDisplayList.lastIndex) { 
+                            bottomMargin = 8.dpToPx() // This padding might also need to be dynamic if icons are very close to edge
                         }
                     }
                     contentDescription = appLabel
@@ -230,7 +260,7 @@ class FloatingActionService : Service() {
                 isUiSuppressed = false
                 if (isServiceRunning) {
                     applyAlphaToFloatingView(prefs.getFloat(KEY_FLOATING_ALPHA, 1.0f))
-                    refreshAppIconsView()
+                    refreshAppIconsView() // This will now also update corner radius
                 }
             }
             ACTION_REFRESH_FLOATING_VIEW -> {
@@ -239,7 +269,7 @@ class FloatingActionService : Service() {
                     if (floatingView != null && floatingView?.windowToken != null) {
                         Log.d(tagName, "Calling refreshAppIconsView for ACTION_REFRESH_FLOATING_VIEW.")
                         applyAlphaToFloatingView(prefs.getFloat(KEY_FLOATING_ALPHA, 1.0f))
-                        refreshAppIconsView()
+                        refreshAppIconsView() // This will now also update corner radius
                     } else {
                         Log.w(tagName, "Refresh action received but view is not ready.")
                     }
@@ -252,7 +282,8 @@ class FloatingActionService : Service() {
                 isUiSuppressed = false
 
                 if (floatingView == null) {
-                     Log.e(tagName, "Start command: floatingView is null. Service cannot function. Stopping.")
+                     // onCreate should have initialized it. If it's null here, something is wrong.
+                    Log.e(tagName, "Start command: floatingView is unexpectedly null. Service cannot function. Stopping.")
                      stopSelf()
                      return START_NOT_STICKY
                 } else if (floatingView?.windowToken == null) {
@@ -260,6 +291,18 @@ class FloatingActionService : Service() {
                     params.x = prefs.getInt(KEY_FLOATING_X, params.x)
                     params.y = prefs.getInt(KEY_FLOATING_Y, params.y)
                     try {
+                        // Ensure corner radius is up-to-date before re-adding
+                        val iconSizeInDp = prefs.getInt(KEY_FLOATING_ICON_SIZE, 48)
+                        val cornerRadiusInDp = iconSizeInDp / 3
+                        val cornerRadiusInPx = cornerRadiusInDp.dpToPx().toFloat()
+                        val backgroundDrawable = (floatingView?.background?.mutate() as? GradientDrawable) ?: GradientDrawable()
+                        backgroundDrawable.shape = GradientDrawable.RECTANGLE
+                        backgroundDrawable.setColor("#80000000".toColorInt())
+                        backgroundDrawable.cornerRadius = cornerRadiusInPx
+                        floatingView?.background = backgroundDrawable
+                        val paddingInPx = (cornerRadiusInDp / 2).coerceAtLeast(8).dpToPx()
+                        floatingView?.setPadding(paddingInPx, paddingInPx, paddingInPx, paddingInPx)
+
                         if (floatingView?.parent == null) {
                             windowManager.addView(floatingView, params)
                         } else {
@@ -274,7 +317,7 @@ class FloatingActionService : Service() {
                 }
                 
                 applyAlphaToFloatingView(prefs.getFloat(KEY_FLOATING_ALPHA, 1.0f))
-                refreshAppIconsView() 
+                refreshAppIconsView() // This will now also update corner radius
 
                 val notificationIntent = Intent(this, SettingsActivity::class.java)
                 val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
@@ -319,22 +362,27 @@ class FloatingActionService : Service() {
             }
             floatingView = null
         }
-        Log.d(tagName, "onDestroy finished. isServiceRunning: $isServiceRunning")
+
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            notificationManager.deleteNotificationChannel(channelId)
+        }
+        Log.d(tagName, "onDestroy: Service fully stopped and cleaned up.")
     }
 
     private fun createNotificationChannel() {
-        Log.d(tagName, "createNotificationChannel called")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Floating Action Service Channel"
-            val descriptionText = "Channel for Floating Action Service notifications"
-            val importance = NotificationManager.IMPORTANCE_LOW
-            val channel = NotificationChannel(channelId, name, importance).apply {
-                description = descriptionText
-            }
-            val notificationManager: NotificationManager =
-                getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-            Log.d(tagName, "Notification channel created/updated.")
+            val serviceChannel = NotificationChannel(
+                channelId,
+                "Floating Action Service Channel",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(serviceChannel)
+            Log.d(tagName, "Notification channel created.")
+        } else {
+            Log.d(tagName, "Notification channel not needed for this API level.")
         }
     }
 }
