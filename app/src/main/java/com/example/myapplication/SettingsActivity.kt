@@ -3,9 +3,9 @@ package com.example.myapplication
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -69,8 +69,6 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-// LocalLifecycleOwner is already imported via androidx.compose.ui.platform.LocalLifecycleOwner
-// No need for androidx.lifecycle.compose.LocalLifecycleOwner specifically
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -85,8 +83,7 @@ class SettingsActivity : ComponentActivity() {
         setContent {
             MyApplicationTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background
                 ) {
                     SettingsNavigator()
                 }
@@ -101,7 +98,7 @@ class SettingsActivity : ComponentActivity() {
             val intent = Intent(this, FloatingActionService::class.java).apply {
                 action = FloatingActionService.ACTION_UNSUPPRESS_UI
             }
-            startService(intent) // This is okay, onStop implies UI should be unsuppressed if service is active
+            startService(intent)
         }
     }
 }
@@ -121,7 +118,6 @@ fun SettingsNavigator() {
 
 private fun startFloatingActionService(context: Context) {
     val intent = Intent(context, FloatingActionService::class.java)
-    // No action, so the service knows this is an explicit start command
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         context.startForegroundService(intent)
     } else {
@@ -138,8 +134,48 @@ private fun stopFloatingActionService(context: Context) {
 @Composable
 fun MainSettingsScreen(navController: NavController) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     var isServiceEnabled by remember { mutableStateOf(FloatingActionService.isServiceRunning) }
+
+    val sharedPreferences = remember {
+        context.getSharedPreferences(FloatingActionService.PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    var selectedAppCount by remember {
+        mutableStateOf(
+            sharedPreferences.getStringSet(
+                FloatingActionService.KEY_SELECTED_APPS, emptySet()
+            )?.size ?: 0
+        )
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isServiceEnabled = FloatingActionService.isServiceRunning
+                selectedAppCount = sharedPreferences.getStringSet(
+                    FloatingActionService.KEY_SELECTED_APPS, emptySet()
+                )?.size ?: 0
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    DisposableEffect(sharedPreferences) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+            if (key == FloatingActionService.KEY_SELECTED_APPS) {
+                selectedAppCount = prefs.getStringSet(key, emptySet())?.size ?: 0
+            }
+        }
+        sharedPreferences.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            sharedPreferences.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
 
     lateinit var notificationPermissionLauncher: ManagedActivityResultLauncher<String, Boolean>
 
@@ -148,10 +184,8 @@ fun MainSettingsScreen(navController: NavController) {
     ) {
         if (Settings.canDrawOverlays(context)) {
             Log.d("SettingsActivity", "Overlay permission granted.")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.POST_NOTIFICATIONS
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -195,8 +229,7 @@ fun MainSettingsScreen(navController: NavController) {
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
                 )
             )
-        }
-    ) { paddingValues ->
+        }) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -206,18 +239,31 @@ fun MainSettingsScreen(navController: NavController) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(bottom = 8.dp), // Add padding to the bottom of the row
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "Enable App Switcher",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                ) { // Column takes available space, adds padding to its right
+                    Text(
+                        text = "Enable App Switcher",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = if (isServiceEnabled) "App Switcher service running." else "App Switcher service disabled.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(
+                            start = 4.dp,
+                            top = 8.dp,
+                        ) // Removed bottom padding as Row now has it
+                    )
+                }
                 Switch(
-                    checked = isServiceEnabled,
-                    onCheckedChange = { isChecked ->
+                    checked = isServiceEnabled, onCheckedChange = { isChecked ->
                         if (isChecked) {
                             if (!Settings.canDrawOverlays(context)) {
                                 val intent = Intent(
@@ -225,10 +271,8 @@ fun MainSettingsScreen(navController: NavController) {
                                     "package:${context.packageName}".toUri()
                                 )
                                 overlayPermissionLauncher.launch(intent)
-                            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                                ContextCompat.checkSelfPermission(
-                                    context,
-                                    Manifest.permission.POST_NOTIFICATIONS
+                            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(
+                                    context, Manifest.permission.POST_NOTIFICATIONS
                                 ) != PackageManager.PERMISSION_GRANTED
                             ) {
                                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -254,15 +298,30 @@ fun MainSettingsScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { navController.navigate("app_selection") }
-                    .padding(vertical = 16.dp),
+                    .padding(vertical = 8.dp), // Padding for the entire row
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Selected Applications",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                horizontalArrangement = Arrangement.SpaceBetween) {
+                // Column for the texts on the left
+                Column(
+                    modifier = Modifier
+                        .weight(1f) // Allows the column to take available space, pushing icon to the end
+                        .padding(end = 8.dp) // Optional padding between text column and icon
+                ) {
+                    Text(
+                        text = "Selected Applications",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = if (selectedAppCount == 0) "No apps selected." else "$selectedAppCount ${if (selectedAppCount == 1) "app" else "apps"} selected.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(
+                            start = 4.dp, top = 8.dp
+                        ) // Adjusted top padding slightly for better spacing
+                    )
+                }
+
+                // Icon on the right
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = "Select applications"
@@ -276,8 +335,7 @@ private fun startServiceLogic(context: Context, updateSwitchState: (Boolean) -> 
     val hasOverlay = Settings.canDrawOverlays(context)
     val hasNotification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.POST_NOTIFICATIONS
+            context, Manifest.permission.POST_NOTIFICATIONS
         ) == PackageManager.PERMISSION_GRANTED
     } else {
         true
@@ -285,7 +343,7 @@ private fun startServiceLogic(context: Context, updateSwitchState: (Boolean) -> 
 
     if (hasOverlay && hasNotification) {
         Log.d("SettingsActivity", "All permissions granted. Starting service.")
-        startFloatingActionService(context) // Explicitly starts the service
+        startFloatingActionService(context)
         updateSwitchState(true)
     } else {
         Log.w(
@@ -294,11 +352,9 @@ private fun startServiceLogic(context: Context, updateSwitchState: (Boolean) -> 
         )
         updateSwitchState(false)
         if (!hasOverlay) Toast.makeText(
-            context,
-            "Overlay permission is required.",
-            Toast.LENGTH_SHORT
+            context, "Overlay permission is required.", Toast.LENGTH_SHORT
         ).show()
-        if (!hasNotification && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Guarded check for TIRAMISU
+        if (!hasNotification && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Toast.makeText(context, "Notification permission is required.", Toast.LENGTH_SHORT)
                 .show()
         }
@@ -309,19 +365,25 @@ private fun startServiceLogic(context: Context, updateSwitchState: (Boolean) -> 
 @Composable
 fun SettingsScreen(navController: NavController) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current // Using the compose one
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 if (FloatingActionService.isServiceRunning) {
-                    Log.d("SettingsActivity", "SettingsScreen ON_RESUME, service running, sending SUPPRESS_UI intent.")
+                    Log.d(
+                        "SettingsActivity",
+                        "SettingsScreen ON_RESUME, service running, sending SUPPRESS_UI intent."
+                    )
                     val intent = Intent(context, FloatingActionService::class.java).apply {
                         action = FloatingActionService.ACTION_SUPPRESS_UI
                     }
                     context.startService(intent)
                 } else {
-                    Log.d("SettingsActivity", "SettingsScreen ON_RESUME, service NOT running, no SUPPRESS_UI intent sent.")
+                    Log.d(
+                        "SettingsActivity",
+                        "SettingsScreen ON_RESUME, service NOT running, no SUPPRESS_UI intent sent."
+                    )
                 }
             }
         }
@@ -332,13 +394,19 @@ fun SettingsScreen(navController: NavController) {
             Log.d("SettingsActivity", "SettingsScreen disposed, removing observer.")
             lifecycleOwner.lifecycle.removeObserver(observer)
             if (FloatingActionService.isServiceRunning) {
-                 val intent = Intent(context, FloatingActionService::class.java).apply {
+                val intent = Intent(context, FloatingActionService::class.java).apply {
                     action = FloatingActionService.ACTION_UNSUPPRESS_UI
                 }
                 context.startService(intent)
-                Log.d("SettingsActivity", "SettingsScreen disposed, service running, sent UNSUPPRESS_UI intent.")
+                Log.d(
+                    "SettingsActivity",
+                    "SettingsScreen disposed, service running, sent UNSUPPRESS_UI intent."
+                )
             } else {
-                 Log.d("SettingsActivity", "SettingsScreen disposed, service not running, no UNSUPPRESS_UI intent sent.")
+                Log.d(
+                    "SettingsActivity",
+                    "SettingsScreen disposed, service not running, no UNSUPPRESS_UI intent sent."
+                )
             }
         }
     }
@@ -346,23 +414,20 @@ fun SettingsScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Select Applications") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                title = { Text("Select Applications") }, navigationIcon = {
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back"
+                    )
+                }
+            }, colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
             )
-        }
-    ) { paddingValues ->
+            )
+        }) { paddingValues ->
         SettingsScreenContent(Modifier.padding(paddingValues))
     }
 }
@@ -378,8 +443,7 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
     var selectedApps by remember {
         mutableStateOf(
             sharedPreferences.getStringSet(
-                FloatingActionService.KEY_SELECTED_APPS,
-                emptySet()
+                FloatingActionService.KEY_SELECTED_APPS, emptySet()
             ) ?: emptySet()
         )
     }
@@ -388,7 +452,7 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
 
     val allLaunchableApps = remember {
         val mainIntent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
-        val myPackageName = context.packageName // Get app's own package name
+        val myPackageName = context.packageName
         packageManager.queryIntentActivities(mainIntent, 0).mapNotNull {
             try {
                 val appInfo = packageManager.getApplicationInfo(it.activityInfo.packageName, 0)
@@ -400,9 +464,7 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
             } catch (e: PackageManager.NameNotFoundException) {
                 null
             }
-        }
-            .filter { it.packageName != myPackageName } // Filter out the app itself
-            .distinctBy { it.packageName }
+        }.filter { it.packageName != myPackageName }.distinctBy { it.packageName }
             .sortedBy { it.label }
     }
 
@@ -429,13 +491,13 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 8.dp) // Adjusted padding
+                .padding(bottom = 8.dp)
         )
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 8.dp), // Space after filter controls
+                .padding(bottom = 8.dp),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -470,11 +532,10 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
                     } else {
                         "No selected apps found."
                     }
-                } else { // Not showing only selected (i.e., showing all, but filtered by search)
+                } else {
                     if (searchQuery.isNotBlank()) {
                         "No applications found matching your search: \"$searchQuery\""
                     } else {
-                        // This case should ideally not be reached if allLaunchableApps is not empty.
                         "No applications found."
                     }
                 }
@@ -497,8 +558,7 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
 
                             sharedPreferences.edit(commit = true) {
                                 putStringSet(
-                                    FloatingActionService.KEY_SELECTED_APPS,
-                                    currentSelection
+                                    FloatingActionService.KEY_SELECTED_APPS, currentSelection
                                 )
                             }
                             Log.d(
@@ -512,12 +572,17 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
                                         action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
                                     }
                                 context.startService(serviceIntent)
-                                Log.d("SettingsActivity", "Service running, sent refresh intent to service.")
+                                Log.d(
+                                    "SettingsActivity",
+                                    "Service running, sent refresh intent to service."
+                                )
                             } else {
-                                Log.d("SettingsActivity", "Service not running, refresh intent NOT sent.")
+                                Log.d(
+                                    "SettingsActivity",
+                                    "Service not running, refresh intent NOT sent."
+                                )
                             }
-                        }
-                    )
+                        })
                 }
             }
         }
@@ -527,17 +592,14 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
 
 @Composable
 fun AppListItem(
-    app: AppEntry,
-    isSelected: Boolean,
-    onSelectionChanged: (String, Boolean) -> Unit
+    app: AppEntry, isSelected: Boolean, onSelectionChanged: (String, Boolean) -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onSelectionChanged(app.packageName, !isSelected) }
             .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+        verticalAlignment = Alignment.CenterVertically) {
         Image(
             painter = rememberDrawablePainter(drawable = app.icon),
             contentDescription = "${app.label} icon",
@@ -545,13 +607,10 @@ fun AppListItem(
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
-            text = app.label,
-            modifier = Modifier.weight(1f)
+            text = app.label, modifier = Modifier.weight(1f)
         )
         Checkbox(
-            checked = isSelected,
-            onCheckedChange = { onSelectionChanged(app.packageName, it) }
-        )
+            checked = isSelected, onCheckedChange = { onSelectionChanged(app.packageName, it) })
     }
 }
 

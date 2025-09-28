@@ -40,11 +40,14 @@ For each item in this TODO list:
 *   **[X] 6. Floating Action Customization (Basic)**
     *   [X] 6.1. Allow users to move the floating action element on the screen.
     *   [X] 6.2. (Optional) Implement docking to screen edges.
-*   **[ ] 7. Changes to Settings Module**
+*   **[X] 7. Changes to Settings Module**
     *   [X] 7.1. Allow users to remove apps from the selected list.
     *   [X] 7.2. Create a main Settings screen with global controls:
         *   [X] 7.2.1. Implement an "Enable App Switcher" switch on this main Settings screen to easily toggle the floating action service on/off.
         *   [X] 7.2.2. Add a "Selected Applications" navigation item on the main Settings screen that, when clicked, opens the app selection page.
+        *   [X] 7.2.3. Provide additional description of settings on the main setting page.
+          *   [X] 7.2.3.1. Description text under "Enable App Switcher" switch. If the service is running, show "App Switcher service running.", else show "App Switcher service disabled."
+          *   [X] 7.2.3.2. Add description text under "Selected Application", which show the number of application selected. This text will reflect the actual selected count with real time.
     *   [X] 7.3. Enhance the App Selection Page (currently SettingsActivity):
         *   [X] 7.3.1. Modify app list display: Remove the current behavior of sorting selected apps to the top of the list (apps will appear in a single, alphabetically sorted list, filterable by search and selection status).
         *   [X] 7.3.2. Implement search functionality: Add a search bar to allow users to filter the list of installed applications by name.
