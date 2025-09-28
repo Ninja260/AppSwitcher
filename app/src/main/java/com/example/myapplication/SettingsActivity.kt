@@ -337,7 +337,7 @@ fun MainSettingsScreen(navController: NavController) {
                         .padding(end = 8.dp) 
                 ) {
                     Text(
-                        text = "Selected Applications",
+                        text = "Dockable Applications",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium
                     )
