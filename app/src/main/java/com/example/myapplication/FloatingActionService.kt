@@ -22,6 +22,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.core.graphics.toColorInt
 
 class FloatingActionService : Service() {
 
@@ -79,7 +80,7 @@ class FloatingActionService : Service() {
 
         floatingView = DraggableLinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(android.graphics.Color.parseColor("#80000000"))
+            setBackgroundColor("#80000000".toColorInt())
             val initialPadding = 8.dpToPx()
             setPadding(initialPadding, initialPadding, initialPadding, initialPadding)
             setWindowManagerParams(windowManager, params, prefs, KEY_FLOATING_X, KEY_FLOATING_Y)

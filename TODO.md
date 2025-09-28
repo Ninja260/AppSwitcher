@@ -53,24 +53,37 @@ For each item in this TODO list:
         *   [X] 7.3.2. Implement search functionality: Add a search bar to allow users to filter the list of installed applications by name.
         *   [X] 7.3.3. Implement filter toggle: Add a control (e.g., a filter icon button) to allow users to switch the list view between "All Apps" and "Selected Apps Only".
         *   [X] 7.3.4. General UI/UX improvements: Further refine the app selection screen for better clarity and ease of use (e.g., improving visual distinction for selected items if not covered by filters, addressed floating view suppression/unsuppression logic when navigating to/from app selection screen).
-*   **[ ] 8. User Experience & Onboarding**
-    *   [ ] 8.1. Provide clear instructions on how to grant necessary permissions.
-    *   [ ] 8.2. Create a simple first-launch experience or tutorial.
+*   **[ ] 8. Features for usability**
+    *   [ ] 8.1. Transparency of app icons in floating action
+        *   [ ] 8.1.1. Slider to adjust transparency on main setting page. The slider value will be stored to permanent storage.
+        *   [ ] 8.1.2. Apply transparency to app icons.
+        *   [ ] 8.1.3. Slider transparency value will reflect to the app icons on the floating actions with real time.
+    *   [ ] 8.2. Set floating action app icons size
+        *   [ ] 8.2.1. Slider to adjust size on main setting page. The slider value will be stored to permanent storage.
+        *   [ ] 8.2.2. Apply size to app icons.
+        *   [ ] 8.2.3. Slider size value will reflect to the app icons on the floating actions with real time.
+    *   [ ] 8.3. Set max numbers of selectable applications
+        *   [ ] 8.3.1. Slider to adjust max number on main setting page. The slider value will be stored to permanent storage. The value can only be 2, 3 or 4.
+        *   [ ] 8.3.2. Apply max number to app icons.
+        *   [ ] 8.3.3. Slider max number value will reflect to the app icons on the floating actions with real time.
 
 ## Phase 3: Non-Functional Requirements & Testing
 
-*   **[ ] 9. Performance Optimization**
-    *   [ ] 9.1. Profile and optimize the floating service for minimal CPU and memory usage.
-    *   [ ] 9.2. Ensure smooth animations and interactions for the floating action.
-*   **[ ] 10. Battery Usage Optimization**
-    *   [ ] 10.1. Analyze and minimize battery consumption by the foreground service. (See NOTICE.md regarding foreground service requirements)
-*   **[ ] 11. Robustness and Error Handling**
-    *   [ ] 11.1. Handle cases where selected apps are uninstalled.
-    *   [ ] 11.2. Ensure the floating action behaves correctly across device reboots.
-*   **[ ] 12. Testing**
-    *   [ ] 12.1. Unit tests for core logic (app selection, storage, launching).
-    *   [ ] 12.2. UI tests for the settings screen and floating action interactions.
-    *   [ ] 12.3. Manual testing on different devices and Android versions.
+*   **[ ] 9. User Experience & Onboarding**
+    *   [ ] 9.1. Provide clear instructions on how to grant necessary permissions.
+    *   [ ] 9.2. Create a simple first-launch experience or tutorial.
+*   **[ ] 10. Performance Optimization**
+    *   [ ] 10.1. Profile and optimize the floating service for minimal CPU and memory usage.
+    *   [ ] 10.2. Ensure smooth animations and interactions for the floating action.
+*   **[ ] 11. Battery Usage Optimization**
+    *   [ ] 11.1. Analyze and minimize battery consumption by the foreground service. (See NOTICE.md regarding foreground service requirements)
+*   **[ ] 12. Robustness and Error Handling**
+    *   [ ] 12.1. Handle cases where selected apps are uninstalled.
+    *   [ ] 12.2. Ensure the floating action behaves correctly across device reboots.
+*   **[ ] 13. Testing**
+    *   [ ] 13.1. Unit tests for core logic (app selection, storage, launching).
+    *   [ ] 13.2. UI tests for the settings screen and floating action interactions.
+    *   [ ] 13.3. Manual testing on different devices and Android versions.
 
 ## Phase 4: Future Considerations (Post V1 Launch)
 
