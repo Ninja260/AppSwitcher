@@ -35,7 +35,8 @@ class FloatingActionService : Service() {
         const val KEY_SELECTED_APPS = "selected_app_packages"
         const val KEY_FLOATING_X = "floating_x"
         const val KEY_FLOATING_Y = "floating_y"
-        const val KEY_FLOATING_ALPHA = "floating_alpha" // New key for transparency
+        const val KEY_FLOATING_ALPHA = "floating_alpha"
+        const val KEY_FLOATING_ICON_SIZE = "floating_icon_size" // New key for icon size
         @Volatile
         var isServiceRunning: Boolean = false
     }
@@ -77,12 +78,10 @@ class FloatingActionService : Service() {
             gravity = Gravity.TOP or Gravity.START
             x = prefs.getInt(KEY_FLOATING_X, 0)
             y = prefs.getInt(KEY_FLOATING_Y, 100)
-            // Alpha will be applied in refreshAppIconsView or when view is created
         }
 
         floatingView = DraggableLinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            // Initial background color with full alpha, actual alpha will be applied dynamically
             setBackgroundColor("#80000000".toColorInt()) 
             val initialPadding = 8.dpToPx()
             setPadding(initialPadding, initialPadding, initialPadding, initialPadding)
@@ -97,19 +96,15 @@ class FloatingActionService : Service() {
                 Log.d(TAG, "Floating view already has window token, updating layout. Params: x=${params.x}, y=${params.y}")
                 windowManager.updateViewLayout(floatingView, params)
             }
-            // Apply initial alpha after view is added
             applyAlphaToFloatingView(prefs.getFloat(KEY_FLOATING_ALPHA, 1.0f))
         } catch (e: Exception) {
             Log.e(TAG, "Error adding/updating view in WindowManager: ${e.message}", e)
-            floatingView = null // Nullify if adding failed
+            floatingView = null 
         }
     }
 
     private fun applyAlphaToFloatingView(alpha: Float) {
         floatingView?.alpha = alpha
-        // Optionally, if you want the background to also have its alpha component scaled:
-        // floatingView?.background?.alpha = (255 * alpha).toInt()
-        // For DraggableLinearLayout, the alpha on the view itself should be sufficient.
     }
 
     private fun removeAppFromSwitcher(packageName: String, appLabel: String) {
@@ -126,7 +121,7 @@ class FloatingActionService : Service() {
         } else {
             Log.w(TAG, "$packageName was already removed or not found in SharedPreferences.")
         }
-        if(isServiceRunning) refreshAppIconsView() // Refresh only if service is running
+        if(isServiceRunning) refreshAppIconsView()
     }
 
     private fun refreshAppIconsView() {
@@ -162,7 +157,10 @@ class FloatingActionService : Service() {
         }
 
         val localPackageManager = applicationContext.packageManager
-        val iconSize = (48 * resources.displayMetrics.density).toInt()
+        // Get icon size in dp from prefs, default to 48dp, then convert to px
+        val iconSizeInDp = prefs.getInt(KEY_FLOATING_ICON_SIZE, 48)
+        val iconSizeInPx = iconSizeInDp.dpToPx()
+
         val selectedAppPackagesList = selectedAppPackagesSet.toList()
 
         selectedAppPackagesList.forEachIndexed { index, packageName ->
@@ -173,15 +171,14 @@ class FloatingActionService : Service() {
 
                 val imageView = ImageView(this).apply {
                     setImageDrawable(appIcon)
-                    layoutParams = LinearLayout.LayoutParams(iconSize, iconSize).apply {
+                    layoutParams = LinearLayout.LayoutParams(iconSizeInPx, iconSizeInPx).apply {
                         if (index < selectedAppPackagesList.lastIndex) {
-                            bottomMargin = 8.dpToPx()
+                            bottomMargin = 8.dpToPx() // Keep consistent bottom margin
                         }
                     }
                     contentDescription = appLabel
                     isClickable = true
                     isFocusable = true
-                    // Alpha for individual icons is managed by the parent floatingView's alpha
 
                     setOnClickListener {
                         Log.d(TAG, "Icon tapped for $packageName ($appLabel)")
@@ -252,7 +249,7 @@ class FloatingActionService : Service() {
             }
             null -> { // Explicit service start command
                 Log.d(TAG, "Null action: Explicit service start command.")
-                isUiSuppressed = false // Ensure UI is not suppressed on explicit start
+                isUiSuppressed = false
 
                 if (floatingView == null) {
                      Log.e(TAG, "Start command: floatingView is null. Service cannot function. Stopping.")

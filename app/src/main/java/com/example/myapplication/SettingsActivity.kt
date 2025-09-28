@@ -158,6 +158,10 @@ fun MainSettingsScreen(navController: NavController) {
         mutableFloatStateOf(sharedPreferences.getFloat(FloatingActionService.KEY_FLOATING_ALPHA, 1.0f))
     }
 
+    var currentIconSizeDp by remember {
+        mutableFloatStateOf(sharedPreferences.getInt(FloatingActionService.KEY_FLOATING_ICON_SIZE, 48).toFloat())
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -166,6 +170,7 @@ fun MainSettingsScreen(navController: NavController) {
                     FloatingActionService.KEY_SELECTED_APPS, emptySet()
                 )?.size ?: 0
                 currentAlpha = sharedPreferences.getFloat(FloatingActionService.KEY_FLOATING_ALPHA, 1.0f)
+                currentIconSizeDp = sharedPreferences.getInt(FloatingActionService.KEY_FLOATING_ICON_SIZE, 48).toFloat()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -176,13 +181,16 @@ fun MainSettingsScreen(navController: NavController) {
 
     DisposableEffect(sharedPreferences) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
-            if (key == FloatingActionService.KEY_SELECTED_APPS) {
-                selectedAppCount = prefs.getStringSet(key, emptySet())?.size ?: 0
-            }
-            if (key == FloatingActionService.KEY_FLOATING_ALPHA) {
-                // Update currentAlpha only if the change didn't originate from this screen's slider
-                // to avoid recomposition loop. However, simple update is fine for now.
-                currentAlpha = prefs.getFloat(key, 1.0f)
+            when (key) {
+                FloatingActionService.KEY_SELECTED_APPS -> {
+                    selectedAppCount = prefs.getStringSet(key, emptySet())?.size ?: 0
+                }
+                FloatingActionService.KEY_FLOATING_ALPHA -> {
+                    currentAlpha = prefs.getFloat(key, 1.0f)
+                }
+                FloatingActionService.KEY_FLOATING_ICON_SIZE -> {
+                    currentIconSizeDp = prefs.getInt(key, 48).toFloat()
+                }
             }
         }
         sharedPreferences.registerOnSharedPreferenceChangeListener(listener)
@@ -343,7 +351,7 @@ fun MainSettingsScreen(navController: NavController) {
                 thickness = DividerDefaults.Thickness,
                 color = DividerDefaults.color
             )
-            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) { // Added bottom padding to the column
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -377,14 +385,63 @@ fun MainSettingsScreen(navController: NavController) {
                             Log.d("SettingsActivity", "Alpha changed, sent refresh intent.")
                         }
                     },
-                    valueRange = 0.2f..1.0f, // Min alpha 20%
-                    steps = 7, // (1.0 - 0.2) / 0.1 = 8 steps. steps = n-1 where n is number of points. So 7 makes 8 points (0.2, 0.3...1.0)
+                    valueRange = 0.2f..1.0f, 
+                    steps = 7, 
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
                     text = "Controls the see-through level of the floating action.",
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp) // Added padding
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp) 
+                )
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                thickness = DividerDefaults.Thickness,
+                color = DividerDefaults.color
+            )
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Floating Action Icon Size",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "${currentIconSizeDp.roundToInt()}dp",
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+                Slider(
+                    value = currentIconSizeDp,
+                    onValueChange = { newValue ->
+                        currentIconSizeDp = newValue
+                    },
+                    onValueChangeFinished = {
+                        sharedPreferences.edit {
+                            putInt(FloatingActionService.KEY_FLOATING_ICON_SIZE, currentIconSizeDp.roundToInt())
+                        }
+                        if (FloatingActionService.isServiceRunning) {
+                            val intent = Intent(context, FloatingActionService::class.java).apply {
+                                action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
+                            }
+                            context.startService(intent)
+                            Log.d("SettingsActivity", "Icon size changed, sent refresh intent.")
+                        }
+                    },
+                    valueRange = 32f..64f, // e.g., 32dp to 64dp
+                    steps = 15, // (64-32)/2 - 1 = 15 steps for 2dp increments (16 points)
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = "Controls the size of app icons in the floating action.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                 )
             }
         }
