@@ -22,7 +22,7 @@ For each item in this TODO list:
     *   [X] 2.3. Design and implement the basic visual appearance of the floating action (e.g., a simple button or small panel).
 *   **[X] 3. App Selection & Storage**
     *   [X] 3.1. Create a basic settings/configuration screen (Activity or Composable).
-    *   [X] 3.2. Implement functionality to list all <caret>installed applications on the device. (See NOTICE.md for critical package visibility considerations)
+    *   [X] 3.2. Implement functionality to list all installed applications on the device. (See NOTICE.md for critical package visibility considerations)
     *   [X] 3.3. Allow users to select multiple apps from the list.
     *   [X] 3.4. Store the list of user-selected apps persistently (e.g., using SharedPreferences or a simple database).
     *   [X] 3.5. Show the selected apps at the top of the list in the settings screen.
@@ -49,7 +49,7 @@ For each item in this TODO list:
         *   [X] 7.3.1. Modify app list display: Remove the current behavior of sorting selected apps to the top of the list (apps will appear in a single, alphabetically sorted list, filterable by search and selection status).
         *   [X] 7.3.2. Implement search functionality: Add a search bar to allow users to filter the list of installed applications by name.
         *   [X] 7.3.3. Implement filter toggle: Add a control (e.g., a filter icon button) to allow users to switch the list view between "All Apps" and "Selected Apps Only".
-        *   [ ] 7.3.4. General UI/UX improvements: Further refine the app selection screen for better clarity and ease of use (e.g., improving visual distinction for selected items if not covered by filters).
+        *   [X] 7.3.4. General UI/UX improvements: Further refine the app selection screen for better clarity and ease of use (e.g., improving visual distinction for selected items if not covered by filters, addressed floating view suppression/unsuppression logic when navigating to/from app selection screen).
 *   **[ ] 8. User Experience & Onboarding**
     *   [ ] 8.1. Provide clear instructions on how to grant necessary permissions.
     *   [ ] 8.2. Create a simple first-launch experience or tutorial.

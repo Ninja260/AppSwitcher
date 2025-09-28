@@ -51,6 +51,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,12 +59,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+// LocalLifecycleOwner is already imported via androidx.compose.ui.platform.LocalLifecycleOwner
+// No need for androidx.lifecycle.compose.LocalLifecycleOwner specifically
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -86,6 +93,17 @@ class SettingsActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStop() {
+        super.onStop()
+        if (FloatingActionService.isServiceRunning) {
+            Log.d("SettingsActivity", "onStop: Service is running, sending UNSUPPRESS_UI intent.")
+            val intent = Intent(this, FloatingActionService::class.java).apply {
+                action = FloatingActionService.ACTION_UNSUPPRESS_UI
+            }
+            startService(intent) // This is okay, onStop implies UI should be unsuppressed if service is active
+        }
+    }
 }
 
 @Composable
@@ -103,6 +121,7 @@ fun SettingsNavigator() {
 
 private fun startFloatingActionService(context: Context) {
     val intent = Intent(context, FloatingActionService::class.java)
+    // No action, so the service knows this is an explicit start command
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         context.startForegroundService(intent)
     } else {
@@ -203,7 +222,7 @@ fun MainSettingsScreen(navController: NavController) {
                             if (!Settings.canDrawOverlays(context)) {
                                 val intent = Intent(
                                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                    Uri.parse("package:${context.packageName}")
+                                    "package:${context.packageName}".toUri()
                                 )
                                 overlayPermissionLauncher.launch(intent)
                             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -266,7 +285,7 @@ private fun startServiceLogic(context: Context, updateSwitchState: (Boolean) -> 
 
     if (hasOverlay && hasNotification) {
         Log.d("SettingsActivity", "All permissions granted. Starting service.")
-        startFloatingActionService(context)
+        startFloatingActionService(context) // Explicitly starts the service
         updateSwitchState(true)
     } else {
         Log.w(
@@ -279,7 +298,7 @@ private fun startServiceLogic(context: Context, updateSwitchState: (Boolean) -> 
             "Overlay permission is required.",
             Toast.LENGTH_SHORT
         ).show()
-        if (!hasNotification && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (!hasNotification && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Guarded check for TIRAMISU
             Toast.makeText(context, "Notification permission is required.", Toast.LENGTH_SHORT)
                 .show()
         }
@@ -289,6 +308,41 @@ private fun startServiceLogic(context: Context, updateSwitchState: (Boolean) -> 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(navController: NavController) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current // Using the compose one
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (FloatingActionService.isServiceRunning) {
+                    Log.d("SettingsActivity", "SettingsScreen ON_RESUME, service running, sending SUPPRESS_UI intent.")
+                    val intent = Intent(context, FloatingActionService::class.java).apply {
+                        action = FloatingActionService.ACTION_SUPPRESS_UI
+                    }
+                    context.startService(intent)
+                } else {
+                    Log.d("SettingsActivity", "SettingsScreen ON_RESUME, service NOT running, no SUPPRESS_UI intent sent.")
+                }
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            Log.d("SettingsActivity", "SettingsScreen disposed, removing observer.")
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            if (FloatingActionService.isServiceRunning) {
+                 val intent = Intent(context, FloatingActionService::class.java).apply {
+                    action = FloatingActionService.ACTION_UNSUPPRESS_UI
+                }
+                context.startService(intent)
+                Log.d("SettingsActivity", "SettingsScreen disposed, service running, sent UNSUPPRESS_UI intent.")
+            } else {
+                 Log.d("SettingsActivity", "SettingsScreen disposed, service not running, no UNSUPPRESS_UI intent sent.")
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -452,12 +506,16 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
                                 "Committed to SharedPreferences. Selection: $currentSelection. Is empty: ${currentSelection.isEmpty()}."
                             )
 
-                            val serviceIntent =
-                                Intent(context, FloatingActionService::class.java).apply {
-                                    action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
-                                }
-                            context.startService(serviceIntent)
-                            Log.d("SettingsActivity", "Sent refresh intent to service.")
+                            if (FloatingActionService.isServiceRunning) {
+                                val serviceIntent =
+                                    Intent(context, FloatingActionService::class.java).apply {
+                                        action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
+                                    }
+                                context.startService(serviceIntent)
+                                Log.d("SettingsActivity", "Service running, sent refresh intent to service.")
+                            } else {
+                                Log.d("SettingsActivity", "Service not running, refresh intent NOT sent.")
+                            }
                         }
                     )
                 }

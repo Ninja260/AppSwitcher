@@ -28,11 +28,12 @@ class FloatingActionService : Service() {
     companion object {
         const val ACTION_REFRESH_FLOATING_VIEW =
             "com.example.myapplication.ACTION_REFRESH_FLOATING_VIEW"
+        const val ACTION_SUPPRESS_UI = "com.example.myapplication.ACTION_SUPPRESS_UI"
+        const val ACTION_UNSUPPRESS_UI = "com.example.myapplication.ACTION_UNSUPPRESS_UI"
         const val PREFS_NAME = "app_switcher_prefs"
         const val KEY_SELECTED_APPS = "selected_app_packages"
         const val KEY_FLOATING_X = "floating_x"
         const val KEY_FLOATING_Y = "floating_y"
-        // EXTRA_SELECTED_APPS removed
         @Volatile
         var isServiceRunning: Boolean = false
     }
@@ -44,6 +45,7 @@ class FloatingActionService : Service() {
     private lateinit var windowManager: WindowManager
     private var floatingView: DraggableLinearLayout? = null
     private lateinit var params: WindowManager.LayoutParams
+    private var isUiSuppressed: Boolean = false
 
     override fun onBind(intent: Intent?): IBinder? {
         Log.d(TAG, "onBind called")
@@ -93,9 +95,10 @@ class FloatingActionService : Service() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error adding/updating view in WindowManager: ${e.message}", e)
-            floatingView = null
+            floatingView = null // Nullify if adding failed
         }
-        refreshAppIconsView() // Initial refresh
+        // Initial refresh will be handled by the first onStartCommand or if service is explicitly started
+        // refreshAppIconsView() // Removed from here
     }
 
     private fun removeAppFromSwitcher(packageName: String, appLabel: String) {
@@ -109,18 +112,24 @@ class FloatingActionService : Service() {
             editor.putStringSet(KEY_SELECTED_APPS, newSelectedApps).apply()
             Log.i(TAG, "$packageName removed from SharedPreferences.")
             Toast.makeText(applicationContext, "$appLabel removed from switcher.", Toast.LENGTH_LONG).show()
-            refreshAppIconsView() // Call without arguments
         } else {
             Log.w(TAG, "$packageName was already removed or not found in SharedPreferences.")
-            refreshAppIconsView() // Call without arguments
         }
+        if(isServiceRunning) refreshAppIconsView() // Refresh only if service is running
     }
 
-    private fun refreshAppIconsView() { // Parameter removed
+    private fun refreshAppIconsView() {
         val currentFloatingView = floatingView ?: run {
             Log.e(TAG, "FloatingView is null, cannot refresh icons.")
             return
         }
+
+        if (isUiSuppressed) {
+            Log.d(TAG, "UI is suppressed, setting view to GONE.")
+            currentFloatingView.visibility = View.GONE
+            return
+        }
+
         currentFloatingView.removeAllViews()
 
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -130,10 +139,10 @@ class FloatingActionService : Service() {
         if (selectedAppPackagesSet.isEmpty()) {
             Log.d(TAG, "No apps selected, setting view to GONE.")
             currentFloatingView.setPadding(0, 0, 0, 0)
-            currentFloatingView.visibility = View.GONE // Then hide the view
-            return // Exit after hiding
+            currentFloatingView.visibility = View.GONE
+            return
         } else {
-            currentFloatingView.visibility = View.VISIBLE // Make sure it's visible if there are apps
+            currentFloatingView.visibility = View.VISIBLE
             Log.d(TAG, "Apps selected, ensuring default padding and visibility for floating view.")
             val paddingInPx = 8.dpToPx()
             currentFloatingView.setPadding(paddingInPx, paddingInPx, paddingInPx, paddingInPx)
@@ -187,7 +196,7 @@ class FloatingActionService : Service() {
                 removeAppFromSwitcher(packageName, packageName) 
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading icon/info for $packageName during icon refresh: ${e.message}", e)
-                removeAppFromSwitcher(packageName, packageName)
+                // Potentially remove, but be cautious of loop modifying underlying list indirectly
             }
         }
     }
@@ -197,75 +206,94 @@ class FloatingActionService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand called. Intent Action: ${intent?.action}, Flags: $flags, StartId: $startId")
 
-        // Removed logic for extracting EXTRA_SELECTED_APPS
-
-        if (intent?.action == ACTION_REFRESH_FLOATING_VIEW) {
-            Log.d(TAG, "Received refresh action in onStartCommand.")
-            if (floatingView != null && floatingView?.windowToken != null) {
-                Log.d(TAG, "Calling refreshAppIconsView from onStartCommand.")
-                refreshAppIconsView() // Call without arguments
-            } else {
-                Log.w(TAG, "Refresh action received but view is not ready. Refresh will happen on view setup.")
+        when (intent?.action) {
+            ACTION_SUPPRESS_UI -> {
+                Log.d(TAG, "Received ACTION_SUPPRESS_UI")
+                isUiSuppressed = true
+                if (isServiceRunning) {
+                    floatingView?.visibility = View.GONE
+                }
             }
-        }
-
-        if (floatingView == null) {
-            Log.w(TAG, "onStartCommand: floatingView is null, service proceeds with onCreate logic for setup (which includes refresh).")
-        } else if (floatingView?.windowToken == null) {
-            Log.w(TAG, "onStartCommand: floatingView exists but not attached to window. Attempting to re-add.")
-            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            params.x = prefs.getInt(KEY_FLOATING_X, params.x)
-            params.y = prefs.getInt(KEY_FLOATING_Y, params.y)
-            try {
-                if (floatingView?.parent == null) {
-                    Log.d(TAG, "Re-adding floating view in onStartCommand. Pos: x=${params.x}, y=${params.y}")
-                    windowManager.addView(floatingView, params)
+            ACTION_UNSUPPRESS_UI -> {
+                Log.d(TAG, "Received ACTION_UNSUPPRESS_UI")
+                isUiSuppressed = false
+                if (isServiceRunning) {
+                    refreshAppIconsView()
+                }
+            }
+            ACTION_REFRESH_FLOATING_VIEW -> {
+                Log.d(TAG, "Received ACTION_REFRESH_FLOATING_VIEW.")
+                if (isServiceRunning) {
+                    if (floatingView != null && floatingView?.windowToken != null) {
+                        Log.d(TAG, "Calling refreshAppIconsView for ACTION_REFRESH_FLOATING_VIEW.")
+                        refreshAppIconsView()
+                    } else {
+                        Log.w(TAG, "Refresh action received but view is not ready.")
+                    }
                 } else {
-                    Log.d(TAG, "Floating view has parent, updating layout in onStartCommand. Pos: x=${params.x}, y=${params.y}")
-                    windowManager.updateViewLayout(floatingView, params)
+                    Log.d(TAG, "ACTION_REFRESH_FLOATING_VIEW received, but service is not running. Ignoring UI refresh.")
                 }
-                if (intent?.action != ACTION_REFRESH_FLOATING_VIEW) { 
-                    refreshAppIconsView() // This call will use SharedPreferences if not a refresh action
-                }
-            } catch (e: IllegalStateException) {
-                Log.e(TAG, "View already added or other issue in onStartCommand re-add: ${e.message}")
-                try {
-                    windowManager.updateViewLayout(floatingView, params)
-                } catch (updE: Exception) {
-                    Log.e(TAG, "Failed to update view layout after re-add attempt failed: ${updE.message}")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error re-adding/updating view in onStartCommand: ${e.message}", e)
             }
-        } else {
-            Log.d(TAG, "onStartCommand: Floating view already initialized and attached.")
-        }
+            null -> { // Explicit service start command
+                Log.d(TAG, "Null action: Explicit service start command.")
+                isUiSuppressed = false // Ensure UI is not suppressed on explicit start
 
-        val notificationIntent = Intent(this, SettingsActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
+                // Ensure view is properly initialized or re-added if necessary
+                if (floatingView == null) {
+                     Log.e(TAG, "Start command: floatingView is null. Service cannot function. Stopping.")
+                     stopSelf()
+                     return START_NOT_STICKY
+                } else if (floatingView?.windowToken == null) {
+                    Log.w(TAG, "Start command: floatingView exists but not attached. Attempting to re-add.")
+                    val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    params.x = prefs.getInt(KEY_FLOATING_X, params.x)
+                    params.y = prefs.getInt(KEY_FLOATING_Y, params.y)
+                    try {
+                        if (floatingView?.parent == null) {
+                            windowManager.addView(floatingView, params)
+                        } else {
+                            windowManager.updateViewLayout(floatingView, params)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error re-adding/updating view in Start command: ${e.message}", e)
+                        // If view cannot be added, the service cannot function as intended.
+                        stopSelf()
+                        return START_NOT_STICKY
+                    }
+                }
+                
+                refreshAppIconsView() // Refresh icons and visibility based on current state
 
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("App Switcher Active")
-            .setContentText("Floating action is running.")
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
+                val notificationIntent = Intent(this, SettingsActivity::class.java)
+                val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
+                val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+                    .setContentTitle("App Switcher Active")
+                    .setContentText("Floating action is running.")
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentIntent(pendingIntent)
+                    .setPriority(NotificationCompat.PRIORITY_LOW)
+                    .build()
 
-        try {
-            startForeground(NOTIFICATION_ID, notification)
-            isServiceRunning = true
-            Log.d(TAG, "startForeground called successfully. isServiceRunning: $isServiceRunning")
-        } catch (e: Exception) {
-            isServiceRunning = false
-            Log.e(TAG, "Error calling startForeground: ${e.message}. isServiceRunning: $isServiceRunning", e)
-            stopSelf()
+                try {
+                    startForeground(NOTIFICATION_ID, notification)
+                    isServiceRunning = true
+                    Log.d(TAG, "startForeground called successfully. isServiceRunning: $isServiceRunning")
+                } catch (e: Exception) {
+                    isServiceRunning = false
+                    Log.e(TAG, "Error calling startForeground: ${e.message}. isServiceRunning: $isServiceRunning", e)
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+            }
+            else -> {
+                Log.w(TAG, "onStartCommand: Received unknown action: ${intent.action}. Ignoring.")
+            }
         }
         return START_STICKY
     }
 
     override fun onDestroy() {
-        Log.d(TAG, "onDestroy called")
+        Log.d(TAG, "onDestroy called. isServiceRunning was: $isServiceRunning")
         isServiceRunning = false
         super.onDestroy()
         floatingView?.let {
