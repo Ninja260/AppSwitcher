@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
@@ -41,7 +42,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
-// No longer need java.util.ArrayList
 
 class SettingsActivity : ComponentActivity() {
 
@@ -269,8 +269,9 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
     var selectedApps by remember {
         mutableStateOf(sharedPreferences.getStringSet(FloatingActionService.KEY_SELECTED_APPS, emptySet()) ?: emptySet())
     }
+    var searchQuery by remember { mutableStateOf("") }
 
-    val launchableApps = remember {
+    val allLaunchableApps = remember {
         val mainIntent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
         val myPackageName = context.packageName // Get app's own package name
         packageManager.queryIntentActivities(mainIntent, 0).mapNotNull {
@@ -290,41 +291,62 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
         .sortedBy { it.label }
     }
 
-    if (launchableApps.isEmpty()) {
-        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No launchable applications were found on this device.")
+    val filteredApps = remember(searchQuery, allLaunchableApps) {
+        if (searchQuery.isBlank()) {
+            allLaunchableApps
+        } else {
+            allLaunchableApps.filter { it.label.contains(searchQuery, ignoreCase = true) }
         }
-    } else {
-        LazyColumn(modifier = modifier.padding(16.dp)) {
-            items(launchableApps, key = { it.packageName }) { app ->
-                AppListItem(
-                    app = app,
-                    isSelected = selectedApps.contains(app.packageName),
-                    onSelectionChanged = { packageName, isSelected ->
-                        val currentSelection = selectedApps.toMutableSet()
-                        if (isSelected) {
-                            currentSelection.add(packageName)
-                        } else {
-                            currentSelection.remove(packageName)
-                        }
-                        selectedApps = currentSelection
-                        
-                        // Save to SharedPreferences synchronously
-                        sharedPreferences.edit(commit = true) { // KTX for synchronous commit
-                            putStringSet(FloatingActionService.KEY_SELECTED_APPS, currentSelection)
-                        }
-                        // Log after committing to SharedPreferences
-                        Log.d("SettingsActivity", "Committed to SharedPreferences. Selection: $currentSelection. Is empty: ${currentSelection.isEmpty()}.")
+    }
 
-                        val serviceIntent = Intent(context, FloatingActionService::class.java).apply {
-                            action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
-                            // No longer adding EXTRA_SELECTED_APPS
+    Column(modifier = modifier.padding(16.dp)) {
+        TextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            label = { Text("Search by app name") },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search Icon") },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        )
+
+        if (allLaunchableApps.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No launchable applications were found on this device.")
+            }
+        } else if (filteredApps.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No applications found matching your search: \"$searchQuery\"")
+            }
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(filteredApps, key = { it.packageName }) { app ->
+                    AppListItem(
+                        app = app,
+                        isSelected = selectedApps.contains(app.packageName),
+                        onSelectionChanged = { packageName, isSelected ->
+                            val currentSelection = selectedApps.toMutableSet()
+                            if (isSelected) {
+                                currentSelection.add(packageName)
+                            } else {
+                                currentSelection.remove(packageName)
+                            }
+                            selectedApps = currentSelection
+                            
+                            sharedPreferences.edit(commit = true) {
+                                putStringSet(FloatingActionService.KEY_SELECTED_APPS, currentSelection)
+                            }
+                            Log.d("SettingsActivity", "Committed to SharedPreferences. Selection: $currentSelection. Is empty: ${currentSelection.isEmpty()}.")
+
+                            val serviceIntent = Intent(context, FloatingActionService::class.java).apply {
+                                action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
+                            }
+                            context.startService(serviceIntent)
+                            Log.d("SettingsActivity", "Sent refresh intent to service.")
                         }
-                        context.startService(serviceIntent)
-                        // Log after sending the intent
-                        Log.d("SettingsActivity", "Sent refresh intent to service.")
-                    }
-                )
+                    )
+                }
             }
         }
     }

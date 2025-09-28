@@ -47,7 +47,7 @@ For each item in this TODO list:
         *   [X] 7.2.2. Add a "Selected Applications" navigation item on the main Settings screen that, when clicked, opens the app selection page.
     *   [X] 7.3. Enhance the App Selection Page (currently SettingsActivity):
         *   [X] 7.3.1. Modify app list display: Remove the current behavior of sorting selected apps to the top of the list (apps will appear in a single, alphabetically sorted list, filterable by search and selection status).
-        *   [ ] 7.3.2. Implement search functionality: Add a search bar to allow users to filter the list of installed applications by name.
+        *   [X] 7.3.2. Implement search functionality: Add a search bar to allow users to filter the list of installed applications by name.
         *   [ ] 7.3.3. Implement filter toggle: Add a control (e.g., a filter icon button) to allow users to switch the list view between "All Apps" and "Selected Apps Only".
         *   [ ] 7.3.4. General UI/UX improvements: Further refine the app selection screen for better clarity and ease of use (e.g., improving visual distinction for selected items if not covered by filters).
 *   **[ ] 8. User Experience & Onboarding**
