@@ -30,7 +30,7 @@
 *   **User-Defined App List:** Users can select and add a specific set of applications to be displayed as shortcuts within the floating action interface.
 *   **Adding Apps:** Provide an intuitive way for users to browse their installed applications and add them to the floating interface.
 *   **Removing Apps:** Allow users to easily remove apps from the floating interface.
-*   **(Optional) Reordering Apps:** Users may be ableable to reorder the app icons in the floating interface.
+*   **(Optional) Reordering Apps:** Users may be able to reorder the app icons in the floating interface.
 
 ### 4.3. Quick App Launching
 *   **Single-Tap Switching:** Tapping an app icon button within the floating action interface will immediately launch the corresponding application or bring it to the foreground if it's already running.

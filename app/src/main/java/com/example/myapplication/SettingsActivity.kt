@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -56,13 +55,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -72,6 +71,7 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner // Corrected import
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -147,7 +147,7 @@ fun MainSettingsScreen(navController: NavController) {
     }
 
     var selectedAppCount by remember {
-        mutableStateOf(
+        mutableIntStateOf(
             sharedPreferences.getStringSet(
                 FloatingActionService.KEY_SELECTED_APPS, emptySet()
             )?.size ?: 0
@@ -528,7 +528,7 @@ private fun startServiceLogic(context: Context, updateSwitchState: (Boolean) -> 
         if (!hasOverlay) Toast.makeText(
             context, "Overlay permission is required.", Toast.LENGTH_SHORT
         ).show()
-        if (!hasNotification && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (!hasNotification) {
             Toast.makeText(context, "Notification permission is required.", Toast.LENGTH_SHORT)
                 .show()
         }
@@ -638,7 +638,7 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
                     label = packageManager.getApplicationLabel(appInfo).toString(),
                     icon = packageManager.getApplicationIcon(appInfo)
                 )
-            } catch (e: PackageManager.NameNotFoundException) {
+            } catch (_: PackageManager.NameNotFoundException) {
                 null
             }
         }.filter { it.packageName != myPackageName }.distinctBy { it.packageName }

@@ -12,6 +12,7 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.LinearLayout
 import androidx.core.content.edit
+import kotlin.math.abs
 
 class DraggableLinearLayout @JvmOverloads constructor(
     context: Context,
@@ -33,8 +34,8 @@ class DraggableLinearLayout @JvmOverloads constructor(
 
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private var isDragging: Boolean = false
-    private val TAG = "DraggableLinearLayout"
-    private val DOCK_PADDING_DP = 0 // Padding from screen edge in dp when docked
+    private val tag = "DraggableLinearLayout"
+    private val dockPaddingDp = 0 // Padding from screen edge in dp when docked
 
     private var dockPaddingPx: Int = 0
 
@@ -59,14 +60,15 @@ class DraggableLinearLayout @JvmOverloads constructor(
         } else {
             @Suppress("DEPRECATION")
             val display = windowManager.defaultDisplay
+
             @Suppress("DEPRECATION")
             val size = Point()
             @Suppress("DEPRECATION")
             display.getSize(size)
             screenWidth = size.x
         }
-        Log.d(TAG, "Screen width set to: $screenWidth")
-        dockPaddingPx = (DOCK_PADDING_DP * resources.displayMetrics.density).toInt()
+        Log.d(tag, "Screen width set to: $screenWidth")
+        dockPaddingPx = (dockPaddingDp * resources.displayMetrics.density).toInt()
 
     }
 
@@ -81,21 +83,29 @@ class DraggableLinearLayout @JvmOverloads constructor(
                 initialTouchX = ev.rawX
                 initialTouchY = ev.rawY
                 isDragging = false
-                Log.d(TAG, "onInterceptTouchEvent: ACTION_DOWN at rawX=${ev.rawX}, rawY=${ev.rawY}. initialParams: x=$initialX, y=$initialY")
+                Log.d(
+                    tag,
+                    "onInterceptTouchEvent: ACTION_DOWN at rawX=${ev.rawX}, rawY=${ev.rawY}. initialParams: x=$initialX, y=$initialY"
+                )
                 return false
             }
+
             MotionEvent.ACTION_MOVE -> {
                 val dx = ev.rawX - initialTouchX
                 val dy = ev.rawY - initialTouchY
-                if (Math.abs(dx) > touchSlop || Math.abs(dy) > touchSlop) {
+                if (abs(dx) > touchSlop || abs(dy) > touchSlop) {
                     isDragging = true
-                    Log.d(TAG, "onInterceptTouchEvent: ACTION_MOVE - Drag started. dx=$dx, dy=$dy")
+                    Log.d(tag, "onInterceptTouchEvent: ACTION_MOVE - Drag started. dx=$dx, dy=$dy")
                     return true
                 }
             }
+
             MotionEvent.ACTION_UP -> {
                 if (isDragging) {
-                    Log.d(TAG, "onInterceptTouchEvent: ACTION_UP - Drag was in progress, intercepting.")
+                    Log.d(
+                        tag,
+                        "onInterceptTouchEvent: ACTION_UP - Drag was in progress, intercepting."
+                    )
                     return true
                 }
             }
@@ -106,7 +116,7 @@ class DraggableLinearLayout @JvmOverloads constructor(
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!this::windowManager.isInitialized) {
-            Log.w(TAG, "onTouchEvent: WindowManager not initialized")
+            Log.w(tag, "onTouchEvent: WindowManager not initialized")
             return super.onTouchEvent(event)
         }
 
@@ -117,36 +127,57 @@ class DraggableLinearLayout @JvmOverloads constructor(
                 initialTouchX = event.rawX
                 initialTouchY = event.rawY
                 isDragging = false
-                Log.d(TAG, "onTouchEvent: ACTION_DOWN directly. rawX=${event.rawX}, rawY=${event.rawY}")
+                Log.d(
+                    tag,
+                    "onTouchEvent: ACTION_DOWN directly. rawX=${event.rawX}, rawY=${event.rawY}"
+                )
                 return true
             }
+
             MotionEvent.ACTION_MOVE -> {
                 val dx = event.rawX - initialTouchX
                 val dy = event.rawY - initialTouchY
 
-                if (!isDragging && (Math.abs(dx) > touchSlop || Math.abs(dy) > touchSlop)) {
+                if (!isDragging && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
                     isDragging = true
-                    Log.d(TAG, "onTouchEvent: ACTION_MOVE - Drag confirmed (was not set by intercept). dx=$dx, dy=$dy")
+                    Log.d(
+                        tag,
+                        "onTouchEvent: ACTION_MOVE - Drag confirmed (was not set by intercept). dx=$dx, dy=$dy"
+                    )
                 }
 
                 if (isDragging) {
                     params.x = initialX + dx.toInt()
                     params.y = initialY + dy.toInt()
-                    Log.d(TAG, "onTouchEvent: ACTION_MOVE - Updating layout to x=${params.x}, y=${params.y}")
+                    Log.d(
+                        tag,
+                        "onTouchEvent: ACTION_MOVE - Updating layout to x=${params.x}, y=${params.y}"
+                    )
                     try {
                         if (isAttachedToWindow) {
-                           windowManager.updateViewLayout(this, params)
+                            windowManager.updateViewLayout(this, params)
                         } else {
-                            Log.w(TAG, "onTouchEvent: ACTION_MOVE - View not attached, cannot update layout.")
+                            Log.w(
+                                tag,
+                                "onTouchEvent: ACTION_MOVE - View not attached, cannot update layout."
+                            )
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "onTouchEvent: Error updating view layout in ACTION_MOVE: ${e.message}", e)
+                        Log.e(
+                            tag,
+                            "onTouchEvent: Error updating view layout in ACTION_MOVE: ${e.message}",
+                            e
+                        )
                     }
                     return true
                 }
             }
+
             MotionEvent.ACTION_UP -> {
-                Log.d(TAG, "onTouchEvent: ACTION_UP. Before docking: x=${params.x}, y=${params.y}. isDragging=$isDragging")
+                Log.d(
+                    tag,
+                    "onTouchEvent: ACTION_UP. Before docking: x=${params.x}, y=${params.y}. isDragging=$isDragging"
+                )
                 if (isDragging) {
                     // Docking Logic
                     val viewWidth = this.width
@@ -157,24 +188,34 @@ class DraggableLinearLayout @JvmOverloads constructor(
                         if (viewCenterX < screenCenterX) {
                             // Snap to left edge
                             params.x = dockPaddingPx
-                            Log.d(TAG, "Docking to LEFT. New params.x: ${params.x}")
+                            Log.d(tag, "Docking to LEFT. New params.x: ${params.x}")
                         } else {
                             // Snap to right edge
                             params.x = screenWidth - viewWidth - dockPaddingPx
-                            Log.d(TAG, "Docking to RIGHT. New params.x: ${params.x}")
+                            Log.d(tag, "Docking to RIGHT. New params.x: ${params.x}")
                         }
 
                         try {
                             if (isAttachedToWindow) {
                                 windowManager.updateViewLayout(this, params)
                             } else {
-                                Log.w(TAG, "onTouchEvent: ACTION_UP - View not attached, cannot update layout for docking.")
+                                Log.w(
+                                    tag,
+                                    "onTouchEvent: ACTION_UP - View not attached, cannot update layout for docking."
+                                )
                             }
                         } catch (e: Exception) {
-                           Log.e(TAG, "onTouchEvent: Error updating view layout for docking: ${e.message}", e)
+                            Log.e(
+                                tag,
+                                "onTouchEvent: Error updating view layout for docking: ${e.message}",
+                                e
+                            )
                         }
                     } else {
-                        Log.w(TAG, "onTouchEvent: ACTION_UP - Cannot dock, viewWidth ($viewWidth) or screenWidth ($screenWidth) is zero.")
+                        Log.w(
+                            tag,
+                            "onTouchEvent: ACTION_UP - Cannot dock, viewWidth ($viewWidth) or screenWidth ($screenWidth) is zero."
+                        )
                     }
 
                     // Save the (potentially docked) position
@@ -182,22 +223,20 @@ class DraggableLinearLayout @JvmOverloads constructor(
                         putInt(prefsKeyX, params.x)
                             .putInt(prefsKeyY, params.y) // Y hasn't changed in this logic
                     }
-                    Log.i(TAG, "Saved docked position: x=${params.x}, y=${params.y}")
+                    Log.i(tag, "Saved docked position: x=${params.x}, y=${params.y}")
                     isDragging = false
                     return true
                 }
             }
+
             MotionEvent.ACTION_CANCEL -> {
                 if (isDragging) {
                     isDragging = false
-                    Log.d(TAG, "onTouchEvent: ACTION_CANCEL - Dragging cancelled.")
+                    Log.d(tag, "onTouchEvent: ACTION_CANCEL - Dragging cancelled.")
                 }
             }
         }
         return super.onTouchEvent(event)
     }
 
-    override fun performClick(): Boolean {
-        return super.performClick()
-    }
 }
