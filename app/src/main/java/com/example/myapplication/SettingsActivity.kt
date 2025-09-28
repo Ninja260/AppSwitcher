@@ -90,16 +90,8 @@ private fun stopFloatingActionService(context: Context) {
 fun MainSettingsScreen(navController: NavController) {
     val context = LocalContext.current
 
-    val initialServiceState = remember {
-        val overlay = Settings.canDrawOverlays(context)
-        val notifications = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
-        overlay && notifications
-    }
-    var isServiceEnabled by remember { mutableStateOf(initialServiceState) }
+    // Initialize the switch state based on whether the service is currently running.
+    var isServiceEnabled by remember { mutableStateOf(FloatingActionService.isServiceRunning) }
 
     lateinit var notificationPermissionLauncher: ManagedActivityResultLauncher<String, Boolean>
 
@@ -117,8 +109,8 @@ fun MainSettingsScreen(navController: NavController) {
             }
         } else {
             Log.d("SettingsActivity", "Overlay permission NOT granted.")
-            isServiceEnabled = false
-            stopFloatingActionService(context)
+            isServiceEnabled = false // Keep switch off
+            // stopFloatingActionService(context) // Service should not be running if permissions were not granted by user action
             Toast.makeText(context, "Overlay permission is required to display the app switcher.", Toast.LENGTH_LONG).show()
         }
     }
@@ -131,8 +123,8 @@ fun MainSettingsScreen(navController: NavController) {
             startServiceLogic(context) { isServiceEnabled = it }
         } else {
             Log.d("SettingsActivity", "Notification permission was denied.")
-            isServiceEnabled = false
-            stopFloatingActionService(context)
+            isServiceEnabled = false // Keep switch off
+            // stopFloatingActionService(context) // Service should not be running if permissions were not granted by user action
             Toast.makeText(context, "Notification permission is required for the App Switcher service.", Toast.LENGTH_LONG).show()
         }
     }
@@ -170,7 +162,7 @@ fun MainSettingsScreen(navController: NavController) {
                     checked = isServiceEnabled,
                     onCheckedChange = { isChecked ->
                         if (isChecked) {
-                            // First, check for overlay permission
+                            // User wants to enable the service
                             if (!Settings.canDrawOverlays(context)) {
                                 val intent = Intent(
                                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -178,17 +170,16 @@ fun MainSettingsScreen(navController: NavController) {
                                 )
                                 overlayPermissionLauncher.launch(intent)
                             }
-                            // If overlay is granted, check for notification permission
                             else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                             }
-                            // If both permissions are already granted
                             else {
-                                startServiceLogic(context) { isServiceEnabled = it }
+                                startServiceLogic(context) { newState -> isServiceEnabled = newState }
                             }
                         } else {
-                            Log.d("SettingsActivity", "Disabling service.")
+                            // User wants to disable the service
+                            Log.d("SettingsActivity", "Disabling service via switch.")
                             isServiceEnabled = false
                             stopFloatingActionService(context)
                         }
@@ -234,13 +225,15 @@ private fun startServiceLogic(context: Context, updateSwitchState: (Boolean) -> 
     if (hasOverlay && hasNotification) {
         Log.d("SettingsActivity", "All permissions granted. Starting service.")
         startFloatingActionService(context)
-        updateSwitchState(true)
+        updateSwitchState(true) // Service successfully started, update switch
     } else {
         Log.w("SettingsActivity", "startServiceLogic called but permissions are missing. Overlay: $hasOverlay, Notification: $hasNotification")
-        updateSwitchState(false)
-        stopFloatingActionService(context) // Ensure service is stopped if permissions are somehow revoked
+        updateSwitchState(false) // Permissions not met, ensure switch is off
+        // stopFloatingActionService(context) // Service should not be running if permissions aren't met
         if (!hasOverlay) Toast.makeText(context, "Overlay permission is required.", Toast.LENGTH_SHORT).show()
-        if (!hasNotification) Toast.makeText(context, "Notification permission is required.", Toast.LENGTH_SHORT).show()
+        if (!hasNotification && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Toast.makeText(context, "Notification permission is required.", Toast.LENGTH_SHORT).show()
+        }
     }
 }
 

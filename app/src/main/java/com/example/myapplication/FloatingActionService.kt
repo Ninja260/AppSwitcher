@@ -25,11 +25,6 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 // Removed: import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
-// Moved KEY_FLOATING_X and KEY_FLOATING_Y to companion object for potential future shared use if needed
-// though they are currently only used internally by the service.
-// private const val KEY_FLOATING_X = "floating_x" // Now in companion
-// private const val KEY_FLOATING_Y = "floating_y" // Now in companion
-
 class FloatingActionService : Service() {
 
     companion object {
@@ -38,6 +33,7 @@ class FloatingActionService : Service() {
         const val KEY_SELECTED_APPS = "selected_app_packages"
         const val KEY_FLOATING_X = "floating_x"
         const val KEY_FLOATING_Y = "floating_y"
+        @Volatile var isServiceRunning: Boolean = false
     }
 
     private val CHANNEL_ID = "FloatingActionServiceChannel"
@@ -57,6 +53,7 @@ class FloatingActionService : Service() {
         super.onCreate()
         Log.d(TAG, "onCreate called")
         createNotificationChannel()
+        // isServiceRunning will be set true in onStartCommand after startForeground
 
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -74,14 +71,13 @@ class FloatingActionService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = prefs.getInt(KEY_FLOATING_X, 100)
+            x = prefs.getInt(KEY_FLOATING_X, 0)
             y = prefs.getInt(KEY_FLOATING_Y, 100)
         }
 
         floatingView = DraggableLinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(android.graphics.Color.parseColor("#80000000"))
-            // Initial padding is set here, refreshAppIconsView will adjust it dynamically
             val initialPadding = 8.dpToPx()
             setPadding(initialPadding, initialPadding, initialPadding, initialPadding)
             setWindowManagerParams(windowManager, params, prefs, KEY_FLOATING_X, KEY_FLOATING_Y)
@@ -131,19 +127,18 @@ class FloatingActionService : Service() {
         val selectedAppPackagesSet = prefs.getStringSet(KEY_SELECTED_APPS, emptySet()) ?: emptySet()
         Log.d(TAG, "Refreshing icons. Selected apps: $selectedAppPackagesSet")
 
-        // Dynamically set padding based on whether apps are selected
         if (selectedAppPackagesSet.isEmpty()) {
             Log.d(TAG, "No apps selected, removing padding from floating view.")
-            currentFloatingView.setPadding(0, 0, 0, 0) // Remove padding
+            currentFloatingView.setPadding(0, 0, 0, 0)
         } else {
             Log.d(TAG, "Apps selected, ensuring default padding for floating view.")
             val paddingInPx = 8.dpToPx()
-            currentFloatingView.setPadding(paddingInPx, paddingInPx, paddingInPx, paddingInPx) // Restore/set default padding
+            currentFloatingView.setPadding(paddingInPx, paddingInPx, paddingInPx, paddingInPx)
         }
 
         if (selectedAppPackagesSet.isEmpty()) {
             Log.d(TAG, "No apps selected to display in floating view.")
-            return // Exit if no apps, padding has been handled above
+            return
         }
 
         val localPackageManager = applicationContext.packageManager
@@ -191,10 +186,10 @@ class FloatingActionService : Service() {
                 currentFloatingView.addView(imageView)
             } catch (e: PackageManager.NameNotFoundException) {
                 Log.e(TAG, "App not found during icon refresh: $packageName. Removing.", e)
-                removeAppFromSwitcher(packageName, packageName) // Pass packageName as label too for consistency in removal
+                removeAppFromSwitcher(packageName, packageName)
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading icon/info for $packageName during icon refresh: ${e.message}", e)
-                removeAppFromSwitcher(packageName, packageName) // Pass packageName as label too
+                removeAppFromSwitcher(packageName, packageName)
             }
         }
     }
@@ -228,7 +223,7 @@ class FloatingActionService : Service() {
                     Log.d(TAG, "Floating view has parent, updating layout in onStartCommand. Pos: x=${params.x}, y=${params.y}")
                     windowManager.updateViewLayout(floatingView, params)
                 }
-                if (intent?.action != ACTION_REFRESH_FLOATING_VIEW) { // Avoid double refresh if action was already refresh
+                if (intent?.action != ACTION_REFRESH_FLOATING_VIEW) { 
                     refreshAppIconsView()
                 }
             } catch (e: IllegalStateException) {
@@ -258,17 +253,20 @@ class FloatingActionService : Service() {
 
         try {
             startForeground(NOTIFICATION_ID, notification)
-            Log.d(TAG, "startForeground called successfully.")
+            isServiceRunning = true
+            Log.d(TAG, "startForeground called successfully. isServiceRunning: $isServiceRunning")
         } catch (e: Exception) {
-            Log.e(TAG, "Error calling startForeground: ${e.message}", e)
-            // Consider stopping the service if startForeground fails criticaly,
-            // or at least ensure the floating view isn't shown.
+            isServiceRunning = false
+            Log.e(TAG, "Error calling startForeground: ${e.message}. isServiceRunning: $isServiceRunning", e)
+            // Consider stopping the service if startForeground fails criticaly
+            stopSelf() // Stop the service if it cannot run in the foreground
         }
         return START_STICKY
     }
 
     override fun onDestroy() {
         Log.d(TAG, "onDestroy called")
+        isServiceRunning = false
         super.onDestroy()
         floatingView?.let {
             try {
@@ -281,6 +279,7 @@ class FloatingActionService : Service() {
             }
             floatingView = null
         }
+        Log.d(TAG, "onDestroy finished. isServiceRunning: $isServiceRunning")
     }
 
     private fun createNotificationChannel() {
