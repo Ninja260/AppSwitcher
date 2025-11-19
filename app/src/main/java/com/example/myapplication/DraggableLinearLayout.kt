@@ -7,9 +7,11 @@ import android.graphics.Point // For screen dimensions
 import android.os.Build
 import android.util.AttributeSet
 import android.util.Log
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.ViewConfiguration
 import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.core.content.edit
 import kotlin.math.abs
@@ -25,6 +27,7 @@ class DraggableLinearLayout @JvmOverloads constructor(
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var prefsKeyX: String
     private lateinit var prefsKeyY: String
+    private lateinit var prefsKeyMinimized: String // Key for storing minimized state
 
     private var screenWidth: Int = 0
     private var initialX: Int = 0
@@ -35,46 +38,100 @@ class DraggableLinearLayout @JvmOverloads constructor(
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private var isDragging: Boolean = false
     private val tag = "DraggableLinearLayout"
-    private val dockPaddingDp = 0 // Padding from screen edge in dp when docked
-
+    private val dockPaddingDp = 0
     private var dockPaddingPx: Int = 0
 
+    private lateinit var minimizeExpandButton: ImageView
+    lateinit var appIconsContainer: LinearLayout
+    private var isMinimized: Boolean = false // Internal state
+
+    init {
+        this.orientation = VERTICAL
+        this.gravity = Gravity.CENTER_HORIZONTAL // Center children like the button
+
+        minimizeExpandButton = ImageView(context).apply {
+            layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                // Margins can be adjusted via padding on the parent or margins here
+            }
+            val buttonPadding = 12.dpToPx() // Increased padding for easier tap
+            setPadding(buttonPadding, buttonPadding, buttonPadding, buttonPadding)
+            setOnClickListener { toggleMinimizeState() }
+        }
+
+        appIconsContainer = LinearLayout(context).apply {
+            layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                // If you want appIconsContainer to fill width, use MATCH_PARENT
+            }
+            orientation = VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL // Center app icons if container is wider
+        }
+
+        addView(minimizeExpandButton)
+        addView(appIconsContainer)
+    }
+
+    private fun updateMinimizeAppearance() {
+        minimizeExpandButton.setImageResource(if (isMinimized) android.R.drawable.arrow_down_float else android.R.drawable.arrow_up_float)
+        appIconsContainer.visibility = if (isMinimized) GONE else VISIBLE
+        
+        // Crucially, tell WindowManager to update the layout to reflect new size
+        if (this::windowManager.isInitialized && isAttachedToWindow) {
+            try {
+                windowManager.updateViewLayout(this, params)
+                Log.d(tag, "updateMinimizeAppearance: WindowManager.updateViewLayout() called.")
+            } catch (e: Exception) {
+                Log.e(tag, "updateMinimizeAppearance: Error calling updateViewLayout: ${e.message}", e)
+            }
+        }
+    }
+
+    private fun toggleMinimizeState() {
+        isMinimized = !isMinimized
+        updateMinimizeAppearance()
+        sharedPreferences.edit { putBoolean(prefsKeyMinimized, isMinimized) }
+        Log.d(tag, "Toggled minimized state to: $isMinimized, saved to prefs.")
+    }
+
+    // Public method for service to check state if needed
+    fun isCurrentlyMinimized(): Boolean = isMinimized
 
     fun setWindowManagerParams(
         wm: WindowManager,
         p: WindowManager.LayoutParams,
         prefs: SharedPreferences,
         keyX: String,
-        keyY: String
+        keyY: String,
+        keyMinimized: String // Added key for minimized state
     ) {
         this.windowManager = wm
         this.params = p
         this.sharedPreferences = prefs
         this.prefsKeyX = keyX
         this.prefsKeyY = keyY
+        this.prefsKeyMinimized = keyMinimized
 
-        // Get screen width
+        isMinimized = prefs.getBoolean(prefsKeyMinimized, false) // Load initial state
+        updateMinimizeAppearance() // Apply loaded state to UI
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val windowMetrics = windowManager.currentWindowMetrics
             screenWidth = windowMetrics.bounds.width()
         } else {
             @Suppress("DEPRECATION")
             val display = windowManager.defaultDisplay
-
             @Suppress("DEPRECATION")
             val size = Point()
             @Suppress("DEPRECATION")
             display.getSize(size)
             screenWidth = size.x
         }
-        Log.d(tag, "Screen width set to: $screenWidth")
         dockPaddingPx = (dockPaddingDp * resources.displayMetrics.density).toInt()
-
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-        if (!this::windowManager.isInitialized) { // Check if setWindowManagerParams has been called
-            return super.onInterceptTouchEvent(ev)
+        if (!this::windowManager.isInitialized) return super.onInterceptTouchEvent(ev)
+        if (isTouchInsideView(minimizeExpandButton, ev)) {
+            return false
         }
         when (ev.action) {
             MotionEvent.ACTION_DOWN -> {
@@ -83,31 +140,18 @@ class DraggableLinearLayout @JvmOverloads constructor(
                 initialTouchX = ev.rawX
                 initialTouchY = ev.rawY
                 isDragging = false
-                Log.d(
-                    tag,
-                    "onInterceptTouchEvent: ACTION_DOWN at rawX=${ev.rawX}, rawY=${ev.rawY}. initialParams: x=$initialX, y=$initialY"
-                )
-                return false
+                return false 
             }
-
             MotionEvent.ACTION_MOVE -> {
                 val dx = ev.rawX - initialTouchX
                 val dy = ev.rawY - initialTouchY
                 if (abs(dx) > touchSlop || abs(dy) > touchSlop) {
                     isDragging = true
-                    Log.d(tag, "onInterceptTouchEvent: ACTION_MOVE - Drag started. dx=$dx, dy=$dy")
                     return true
                 }
             }
-
             MotionEvent.ACTION_UP -> {
-                if (isDragging) {
-                    Log.d(
-                        tag,
-                        "onInterceptTouchEvent: ACTION_UP - Drag was in progress, intercepting."
-                    )
-                    return true
-                }
+                if (isDragging) return true
             }
         }
         return false
@@ -115,11 +159,7 @@ class DraggableLinearLayout @JvmOverloads constructor(
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!this::windowManager.isInitialized) {
-            Log.w(tag, "onTouchEvent: WindowManager not initialized")
-            return super.onTouchEvent(event)
-        }
-
+        if (!this::windowManager.isInitialized) return super.onTouchEvent(event)
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 initialX = params.x
@@ -127,116 +167,51 @@ class DraggableLinearLayout @JvmOverloads constructor(
                 initialTouchX = event.rawX
                 initialTouchY = event.rawY
                 isDragging = false
-                Log.d(
-                    tag,
-                    "onTouchEvent: ACTION_DOWN directly. rawX=${event.rawX}, rawY=${event.rawY}"
-                )
                 return true
             }
-
             MotionEvent.ACTION_MOVE -> {
                 val dx = event.rawX - initialTouchX
                 val dy = event.rawY - initialTouchY
-
                 if (!isDragging && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
                     isDragging = true
-                    Log.d(
-                        tag,
-                        "onTouchEvent: ACTION_MOVE - Drag confirmed (was not set by intercept). dx=$dx, dy=$dy"
-                    )
                 }
-
                 if (isDragging) {
                     params.x = initialX + dx.toInt()
                     params.y = initialY + dy.toInt()
-                    Log.d(
-                        tag,
-                        "onTouchEvent: ACTION_MOVE - Updating layout to x=${params.x}, y=${params.y}"
-                    )
-                    try {
-                        if (isAttachedToWindow) {
-                            windowManager.updateViewLayout(this, params)
-                        } else {
-                            Log.w(
-                                tag,
-                                "onTouchEvent: ACTION_MOVE - View not attached, cannot update layout."
-                            )
-                        }
-                    } catch (e: Exception) {
-                        Log.e(
-                            tag,
-                            "onTouchEvent: Error updating view layout in ACTION_MOVE: ${e.message}",
-                            e
-                        )
-                    }
+                    if (isAttachedToWindow) windowManager.updateViewLayout(this, params)
                     return true
                 }
             }
-
             MotionEvent.ACTION_UP -> {
-                Log.d(
-                    tag,
-                    "onTouchEvent: ACTION_UP. Before docking: x=${params.x}, y=${params.y}. isDragging=$isDragging"
-                )
                 if (isDragging) {
-                    // Docking Logic
                     val viewWidth = this.width
-                    if (viewWidth > 0 && screenWidth > 0) { // Ensure we have valid widths
+                    if (viewWidth > 0 && screenWidth > 0) {
                         val viewCenterX = params.x + viewWidth / 2
                         val screenCenterX = screenWidth / 2
-
-                        if (viewCenterX < screenCenterX) {
-                            // Snap to left edge
-                            params.x = dockPaddingPx
-                            Log.d(tag, "Docking to LEFT. New params.x: ${params.x}")
-                        } else {
-                            // Snap to right edge
-                            params.x = screenWidth - viewWidth - dockPaddingPx
-                            Log.d(tag, "Docking to RIGHT. New params.x: ${params.x}")
-                        }
-
-                        try {
-                            if (isAttachedToWindow) {
-                                windowManager.updateViewLayout(this, params)
-                            } else {
-                                Log.w(
-                                    tag,
-                                    "onTouchEvent: ACTION_UP - View not attached, cannot update layout for docking."
-                                )
-                            }
-                        } catch (e: Exception) {
-                            Log.e(
-                                tag,
-                                "onTouchEvent: Error updating view layout for docking: ${e.message}",
-                                e
-                            )
-                        }
-                    } else {
-                        Log.w(
-                            tag,
-                            "onTouchEvent: ACTION_UP - Cannot dock, viewWidth ($viewWidth) or screenWidth ($screenWidth) is zero."
-                        )
+                        if (viewCenterX < screenCenterX) params.x = dockPaddingPx
+                        else params.x = screenWidth - viewWidth - dockPaddingPx
+                        if (isAttachedToWindow) windowManager.updateViewLayout(this, params)
                     }
-
-                    // Save the (potentially docked) position
                     sharedPreferences.edit {
                         putInt(prefsKeyX, params.x)
-                            .putInt(prefsKeyY, params.y) // Y hasn't changed in this logic
+                        putInt(prefsKeyY, params.y)
                     }
-                    Log.i(tag, "Saved docked position: x=${params.x}, y=${params.y}")
                     isDragging = false
                     return true
                 }
             }
-
             MotionEvent.ACTION_CANCEL -> {
-                if (isDragging) {
-                    isDragging = false
-                    Log.d(tag, "onTouchEvent: ACTION_CANCEL - Dragging cancelled.")
-                }
+                if (isDragging) isDragging = false
             }
         }
         return super.onTouchEvent(event)
     }
 
+    private fun isTouchInsideView(view: android.view.View, event: MotionEvent): Boolean {
+        val localX = event.x
+        val localY = event.y
+        return localX >= view.left && localX <= view.right && localY >= view.top && localY <= view.bottom
+    }
+
+    private fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
 }
