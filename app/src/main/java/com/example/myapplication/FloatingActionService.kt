@@ -225,7 +225,30 @@ class FloatingActionService : Service() {
                         contentDescription = appLabel
                         isClickable = true
                         isFocusable = true
-                        setOnClickListener { }
+                        setOnClickListener {
+                            val launchIntent = localPackageManager.getLaunchIntentForPackage(packageName)
+                            if (launchIntent != null) {
+                                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                try {
+                                    startActivity(launchIntent)
+                                } catch (e: Exception) {
+                                    Log.e(tagName, "Could not launch app: $packageName", e)
+                                    Toast.makeText(
+                                        applicationContext,
+                                        "Could not launch $appLabel",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            } else {
+                                Log.e(tagName, "No launch intent for package $packageName")
+                                Toast.makeText(
+                                    applicationContext,
+                                    "$appLabel could not be opened.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                removeAppFromSwitcher(packageName, appLabel)
+                            }
+                        }
                     }
                     currentFloatingView.appIconsContainer.addView(imageView)
                 } catch (e: PackageManager.NameNotFoundException) {
