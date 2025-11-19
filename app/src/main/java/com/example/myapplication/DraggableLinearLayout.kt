@@ -27,7 +27,6 @@ class DraggableLinearLayout @JvmOverloads constructor(
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var prefsKeyX: String
     private lateinit var prefsKeyY: String
-    private lateinit var prefsKeyMinimized: String // Key for storing minimized state
 
     private var screenWidth: Int = 0
     private var initialX: Int = 0
@@ -43,7 +42,6 @@ class DraggableLinearLayout @JvmOverloads constructor(
 
     private lateinit var minimizeExpandButton: ImageView
     lateinit var appIconsContainer: LinearLayout
-    private var isMinimized: Boolean = false // Internal state
 
     init {
         this.orientation = VERTICAL
@@ -55,7 +53,6 @@ class DraggableLinearLayout @JvmOverloads constructor(
             }
             val buttonPadding = 12.dpToPx() // Increased padding for easier tap
             setPadding(buttonPadding, buttonPadding, buttonPadding, buttonPadding)
-            setOnClickListener { toggleMinimizeState() }
         }
 
         appIconsContainer = LinearLayout(context).apply {
@@ -70,48 +67,36 @@ class DraggableLinearLayout @JvmOverloads constructor(
         addView(appIconsContainer)
     }
 
-    private fun updateMinimizeAppearance() {
+    fun setMinimizeButtonClickListener(listener: OnClickListener) {
+        minimizeExpandButton.setOnClickListener(listener)
+    }
+
+    fun refresh(isMinimized: Boolean) {
         minimizeExpandButton.setImageResource(if (isMinimized) android.R.drawable.arrow_down_float else android.R.drawable.arrow_up_float)
         appIconsContainer.visibility = if (isMinimized) GONE else VISIBLE
-        
-        // Crucially, tell WindowManager to update the layout to reflect new size
+
         if (this::windowManager.isInitialized && isAttachedToWindow) {
             try {
                 windowManager.updateViewLayout(this, params)
-                Log.d(tag, "updateMinimizeAppearance: WindowManager.updateViewLayout() called.")
+                Log.d(tag, "refresh: WindowManager.updateViewLayout() called.")
             } catch (e: Exception) {
-                Log.e(tag, "updateMinimizeAppearance: Error calling updateViewLayout: ${e.message}", e)
+                Log.e(tag, "refresh: Error calling updateViewLayout: ${e.message}", e)
             }
         }
     }
-
-    private fun toggleMinimizeState() {
-        isMinimized = !isMinimized
-        updateMinimizeAppearance()
-        sharedPreferences.edit { putBoolean(prefsKeyMinimized, isMinimized) }
-        Log.d(tag, "Toggled minimized state to: $isMinimized, saved to prefs.")
-    }
-
-    // Public method for service to check state if needed
-    fun isCurrentlyMinimized(): Boolean = isMinimized
 
     fun setWindowManagerParams(
         wm: WindowManager,
         p: WindowManager.LayoutParams,
         prefs: SharedPreferences,
         keyX: String,
-        keyY: String,
-        keyMinimized: String // Added key for minimized state
+        keyY: String
     ) {
         this.windowManager = wm
         this.params = p
         this.sharedPreferences = prefs
         this.prefsKeyX = keyX
         this.prefsKeyY = keyY
-        this.prefsKeyMinimized = keyMinimized
-
-        isMinimized = prefs.getBoolean(prefsKeyMinimized, false) // Load initial state
-        updateMinimizeAppearance() // Apply loaded state to UI
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val windowMetrics = windowManager.currentWindowMetrics
@@ -140,7 +125,7 @@ class DraggableLinearLayout @JvmOverloads constructor(
                 initialTouchX = ev.rawX
                 initialTouchY = ev.rawY
                 isDragging = false
-                return false 
+                return false
             }
             MotionEvent.ACTION_MOVE -> {
                 val dx = ev.rawX - initialTouchX

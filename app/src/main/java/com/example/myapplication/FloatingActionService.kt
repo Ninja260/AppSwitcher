@@ -19,6 +19,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.core.content.edit
 import androidx.core.graphics.toColorInt
 
 class FloatingActionService : Service() {
@@ -35,7 +36,7 @@ class FloatingActionService : Service() {
         const val KEY_FLOATING_ALPHA = "floating_alpha"
         const val KEY_FLOATING_ICON_SIZE = "floating_icon_size"
         const val KEY_MAX_DOCK_APPS = "max_dock_apps"
-        const val KEY_FLOATING_MINIMIZED_STATE = "floating_minimized_state" // New key
+        const val KEY_FLOATING_MINIMIZED_STATE = "floating_minimized_state"
         @Volatile
         var isServiceRunning: Boolean = false
     }
@@ -48,6 +49,7 @@ class FloatingActionService : Service() {
     private var floatingView: DraggableLinearLayout? = null
     private lateinit var params: WindowManager.LayoutParams
     private var isUiSuppressed: Boolean = false
+    private var isMinimized: Boolean = false
 
     override fun onBind(intent: Intent?): IBinder? {
         Log.d(tagName, "onBind called")
@@ -61,6 +63,8 @@ class FloatingActionService : Service() {
 
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+
+        isMinimized = prefs.getBoolean(KEY_FLOATING_MINIMIZED_STATE, false)
 
         params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -80,29 +84,32 @@ class FloatingActionService : Service() {
         }
 
         floatingView = DraggableLinearLayout(this).apply {
-            // The DraggableLinearLayout now handles its own orientation and children
             val iconSizeInDp = prefs.getInt(KEY_FLOATING_ICON_SIZE, 48)
-            val cornerRadiusInDp = iconSizeInDp / 3 
+            val cornerRadiusInDp = iconSizeInDp / 3
             val cornerRadiusInPx = cornerRadiusInDp.dpToPx().toFloat()
 
             val backgroundDrawable = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                setColor("#80000000".toColorInt()) 
-                setCornerRadius(cornerRadiusInPx) 
+                setColor("#80000000".toColorInt())
+                setCornerRadius(cornerRadiusInPx)
             }
-            background = backgroundDrawable         
-            val initialPadding = (cornerRadiusInDp / 2).coerceAtLeast(4).dpToPx() // Reduced min padding slightly
+            background = backgroundDrawable
+            val initialPadding = (cornerRadiusInDp / 2).coerceAtLeast(4).dpToPx()
             setPadding(initialPadding, initialPadding, initialPadding, initialPadding)
-            
-            // Pass all necessary keys to DraggableLinearLayout
+
             setWindowManagerParams(
-                windowManager, 
-                params, 
-                prefs, 
-                KEY_FLOATING_X, 
-                KEY_FLOATING_Y,
-                KEY_FLOATING_MINIMIZED_STATE // Pass the new key
+                windowManager,
+                params,
+                prefs,
+                KEY_FLOATING_X,
+                KEY_FLOATING_Y
             )
+
+            setMinimizeButtonClickListener {
+                isMinimized = !isMinimized
+                prefs.edit { putBoolean(KEY_FLOATING_MINIMIZED_STATE, isMinimized) }
+                refreshAppIconsView()
+            }
         }
 
         try {
@@ -116,7 +123,7 @@ class FloatingActionService : Service() {
             applyAlphaToFloatingView(prefs.getFloat(KEY_FLOATING_ALPHA, 1.0f))
         } catch (e: Exception) {
             Log.e(tagName, "Error adding/updating view in WindowManager: ${e.message}", e)
-            floatingView = null 
+            floatingView = null
         }
     }
 
@@ -150,115 +157,91 @@ class FloatingActionService : Service() {
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         applyAlphaToFloatingView(prefs.getFloat(KEY_FLOATING_ALPHA, 1.0f))
 
-        // Overall visibility of the floatingView
         if (isUiSuppressed) {
             Log.d(tagName, "UI is suppressed, setting entire floating view to GONE.")
             currentFloatingView.visibility = View.GONE
             return
         }
 
-        val selectedAppPackagesSet = prefs.getStringSet(KEY_SELECTED_APPS, emptySet()) ?: emptySet()
-        if (selectedAppPackagesSet.isEmpty() && !currentFloatingView.isCurrentlyMinimized()) {
-            Log.d(tagName, "No apps selected AND not minimized, setting entire floating view GONE.")
-            // Keep background styling minimal if it's going GONE anyway
-            val backgroundDrawableOnEmpty = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                setColor("#00000000".toColorInt()) 
-                setCornerRadius(0f) // No radius if it's GONE
-            }
-            currentFloatingView.background = backgroundDrawableOnEmpty
-            currentFloatingView.setPadding(0, 0, 0, 0)
-            currentFloatingView.visibility = View.GONE
-            return
-        } else {
-            // If UI is not suppressed, and (we have apps OR it's minimized), make it visible.
-            currentFloatingView.visibility = View.VISIBLE
-            Log.d(tagName, "Apps selected or view is minimized, ensuring floating view is VISIBLE.")
-            // Update background and padding (proportional to icon size)
-            val iconSizeInDp = prefs.getInt(KEY_FLOATING_ICON_SIZE, 48)
-            val cornerRadiusInDp = iconSizeInDp / 3
-            val cornerRadiusInPx = cornerRadiusInDp.dpToPx().toFloat()
-            val backgroundDrawable = (currentFloatingView.background?.mutate() as? GradientDrawable) ?: GradientDrawable()
-            backgroundDrawable.shape = GradientDrawable.RECTANGLE
-            // Color depends on whether it's minimized and has apps or not
-            if (currentFloatingView.isCurrentlyMinimized() || selectedAppPackagesSet.isNotEmpty()) {
-                backgroundDrawable.setColor("#80000000".toColorInt())
-            } else {
-                 backgroundDrawable.setColor("#00000000".toColorInt()) // Transparent if empty AND not minimized (edge case)
-            }
-            backgroundDrawable.cornerRadius = cornerRadiusInPx
-            currentFloatingView.background = backgroundDrawable
-            val paddingInPx = (cornerRadiusInDp / 2).coerceAtLeast(4).dpToPx()
-            currentFloatingView.setPadding(paddingInPx, paddingInPx, paddingInPx, paddingInPx)
-        }
+        currentFloatingView.visibility = View.VISIBLE
 
-        // Now manage the appIconsContainer within the DraggableLinearLayout
+        val iconSizeInDp = prefs.getInt(KEY_FLOATING_ICON_SIZE, 48)
+        val cornerRadiusInDp = iconSizeInDp / 3
+        val cornerRadiusInPx = cornerRadiusInDp.dpToPx().toFloat()
+        val backgroundDrawable = (currentFloatingView.background?.mutate() as? GradientDrawable) ?: GradientDrawable()
+        backgroundDrawable.shape = GradientDrawable.RECTANGLE
+        backgroundDrawable.setColor("#80000000".toColorInt())
+        backgroundDrawable.cornerRadius = cornerRadiusInPx
+        currentFloatingView.background = backgroundDrawable
+        val paddingInPx = (cornerRadiusInDp / 2).coerceAtLeast(4).dpToPx()
+        currentFloatingView.setPadding(paddingInPx, paddingInPx, paddingInPx, paddingInPx)
+
+        currentFloatingView.refresh(isMinimized)
+
         currentFloatingView.appIconsContainer.removeAllViews()
 
-        if (currentFloatingView.isCurrentlyMinimized()) {
-            Log.d(tagName, "Floating view is minimized, appIconsContainer will be GONE (handled by DraggableLinearLayout).")
-            // DraggableLinearLayout itself handles making appIconsContainer GONE
-        } else if (selectedAppPackagesSet.isEmpty()) {
-            Log.d(tagName, "No apps selected and not minimized, appIconsContainer will be empty.")
-            // appIconsContainer is already empty and will remain visible but without children
-        } else {
-            Log.d(tagName, "Apps selected and not minimized, populating appIconsContainer.")
-            val localPackageManager = applicationContext.packageManager
-            val iconSizeInDp = prefs.getInt(KEY_FLOATING_ICON_SIZE, 48)
-            val iconSizeInPx = iconSizeInDp.dpToPx()
-            val maxDockApps = prefs.getInt(KEY_MAX_DOCK_APPS, 4)
-            val appsToDisplayList = selectedAppPackagesSet.toList().take(maxDockApps)
+        if (!isMinimized) {
+            val selectedAppPackagesSet = prefs.getStringSet(KEY_SELECTED_APPS, emptySet()) ?: emptySet()
 
-            appsToDisplayList.forEachIndexed { index, packageName ->
-                try {
-                    val appInfo = localPackageManager.getApplicationInfo(packageName, 0)
-                    val appLabel = localPackageManager.getApplicationLabel(appInfo).toString()
-                    val appIcon: Drawable = localPackageManager.getApplicationIcon(packageName)
+            if (selectedAppPackagesSet.isNotEmpty()) {
+                Log.d(tagName, "Apps selected and not minimized, populating appIconsContainer.")
+                val localPackageManager = applicationContext.packageManager
+                val iconSizeInPx = iconSizeInDp.dpToPx()
+                val maxDockApps = prefs.getInt(KEY_MAX_DOCK_APPS, 4)
+                val appsToDisplayList = selectedAppPackagesSet.toList().take(maxDockApps)
 
-                    val imageView = ImageView(this).apply {
-                        setImageDrawable(appIcon)
-                        layoutParams = LinearLayout.LayoutParams(iconSizeInPx, iconSizeInPx).apply {
-                            if (index < appsToDisplayList.lastIndex) {
-                                bottomMargin = 8.dpToPx()
+                appsToDisplayList.forEachIndexed { index, packageName ->
+                    try {
+                        val appInfo = localPackageManager.getApplicationInfo(packageName, 0)
+                        val appLabel = localPackageManager.getApplicationLabel(appInfo).toString()
+                        val appIcon: Drawable = localPackageManager.getApplicationIcon(packageName)
+
+                        val imageView = ImageView(this).apply {
+                            setImageDrawable(appIcon)
+                            layoutParams = LinearLayout.LayoutParams(iconSizeInPx, iconSizeInPx).apply {
+                                if (index < appsToDisplayList.lastIndex) {
+                                    bottomMargin = 8.dpToPx()
+                                }
                             }
-                        }
-                        contentDescription = appLabel
-                        isClickable = true
-                        isFocusable = true
-                        setOnClickListener {
-                            val launchIntent = localPackageManager.getLaunchIntentForPackage(packageName)
-                            if (launchIntent != null) {
-                                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                try {
-                                    startActivity(launchIntent)
-                                } catch (e: Exception) {
-                                    Log.e(tagName, "Could not launch app: $packageName", e)
+                            contentDescription = appLabel
+                            isClickable = true
+                            isFocusable = true
+                            setOnClickListener {
+                                val launchIntent = localPackageManager.getLaunchIntentForPackage(packageName)
+                                if (launchIntent != null) {
+                                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    try {
+                                        startActivity(launchIntent)
+                                    } catch (e: Exception) {
+                                        Log.e(tagName, "Could not launch app: $packageName", e)
+                                        Toast.makeText(
+                                            applicationContext,
+                                            "Could not launch $appLabel",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                } else {
+                                    Log.e(tagName, "No launch intent for package $packageName")
                                     Toast.makeText(
                                         applicationContext,
-                                        "Could not launch $appLabel",
-                                        Toast.LENGTH_SHORT
+                                        "$appLabel could not be opened.",
+                                        Toast.LENGTH_LONG
                                     ).show()
+                                    removeAppFromSwitcher(packageName, appLabel)
                                 }
-                            } else {
-                                Log.e(tagName, "No launch intent for package $packageName")
-                                Toast.makeText(
-                                    applicationContext,
-                                    "$appLabel could not be opened.",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                                removeAppFromSwitcher(packageName, appLabel)
                             }
                         }
+                        currentFloatingView.appIconsContainer.addView(imageView)
+                    } catch (e: PackageManager.NameNotFoundException) {
+                        Log.e(tagName, "App not found: $packageName. Removing.", e)
+                        removeAppFromSwitcher(packageName, packageName)
+                    } catch (e: Exception) {
+                        Log.e(tagName, "Error loading icon for $packageName: ${e.message}", e)
                     }
-                    currentFloatingView.appIconsContainer.addView(imageView)
-                } catch (e: PackageManager.NameNotFoundException) {
-                    Log.e(tagName, "App not found: $packageName. Removing.", e)
-                    removeAppFromSwitcher(packageName, packageName)
-                } catch (e: Exception) {
-                    Log.e(tagName, "Error loading icon for $packageName: ${e.message}", e)
                 }
             }
         }
+
         if (isServiceRunning) {
             currentFloatingView.requestLayout()
         }
@@ -279,7 +262,6 @@ class FloatingActionService : Service() {
             ACTION_UNSUPPRESS_UI -> {
                 Log.d(tagName, "Received ACTION_UNSUPPRESS_UI")
                 isUiSuppressed = false
-                // Visibility and content handled by refreshAppIconsView
                 if (isServiceRunning) refreshAppIconsView()
             }
             ACTION_REFRESH_FLOATING_VIEW -> {
@@ -303,16 +285,14 @@ class FloatingActionService : Service() {
                     params.x = prefs.getInt(KEY_FLOATING_X, params.x)
                     params.y = prefs.getInt(KEY_FLOATING_Y, params.y)
                     try {
-                        // Ensure DraggableLinearLayout reloads its minimized state correctly
                         floatingView?.setWindowManagerParams(
-                            windowManager, 
-                            params, 
-                            prefs, 
-                            KEY_FLOATING_X, 
-                            KEY_FLOATING_Y, 
-                            KEY_FLOATING_MINIMIZED_STATE
+                            windowManager,
+                            params,
+                            prefs,
+                            KEY_FLOATING_X,
+                            KEY_FLOATING_Y
                         )
-                        // Update background and padding if needed before re-adding,
+
                         val iconSizeInDp = prefs.getInt(KEY_FLOATING_ICON_SIZE, 48)
                         val cornerRadiusInDp = iconSizeInDp / 3
                         val cornerRadiusInPx = cornerRadiusInDp.dpToPx().toFloat()
@@ -336,7 +316,7 @@ class FloatingActionService : Service() {
                         return START_NOT_STICKY
                     }
                 }
-                
+
                 refreshAppIconsView()
 
                 val notificationIntent = Intent(this, SettingsActivity::class.java)
