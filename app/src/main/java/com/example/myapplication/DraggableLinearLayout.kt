@@ -3,6 +3,7 @@ package com.example.myapplication
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.graphics.Point // For screen dimensions
 import android.os.Build
 import android.util.AttributeSet
@@ -99,6 +100,14 @@ class DraggableLinearLayout @JvmOverloads constructor(
         this.prefsKeyX = keyX
         this.prefsKeyY = keyY
 
+        updateScreenDimensions()
+
+        dockPaddingPx = (dockPaddingDp * resources.displayMetrics.density).toInt()
+    }
+
+    private fun updateScreenDimensions() {
+        if (!this::windowManager.isInitialized) return
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val windowMetrics = windowManager.currentWindowMetrics
             screenWidth = windowMetrics.bounds.width()
@@ -111,13 +120,34 @@ class DraggableLinearLayout @JvmOverloads constructor(
             display.getSize(size)
             screenWidth = size.x
         }
-        dockPaddingPx = (dockPaddingDp * resources.displayMetrics.density).toInt()
+        Log.d(tag, "Screen width updated to: $screenWidth")
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        Log.d(tag, "Configuration changed.")
+
+        val oldScreenWidth = screenWidth
+        updateScreenDimensions()
+
+        // Adjust position if the view is attached and screen width has changed
+        if (isAttachedToWindow && oldScreenWidth != screenWidth && oldScreenWidth > 0) {
+            val viewWidth = this.width
+            // If view was snapped to the right, re-snap it to the new right edge.
+            if (viewWidth > 0 && params.x > oldScreenWidth / 2) {
+                params.x = screenWidth - viewWidth - dockPaddingPx
+                windowManager.updateViewLayout(this, params)
+                // Persist the new position
+                sharedPreferences.edit { putInt(prefsKeyX, params.x) }
+                Log.d(tag, "View repositioned for new screen width. New X: ${params.x}")
+            }
+        }
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         // Intercept all touch events to decide if it's a drag.
         if (!this::windowManager.isInitialized) return super.onInterceptTouchEvent(ev)
-        
+
         val action = ev.action
         if (action == MotionEvent.ACTION_DOWN) {
             initialX = params.x
@@ -132,7 +162,7 @@ class DraggableLinearLayout @JvmOverloads constructor(
         if (isTouchInsideView(minimizeExpandButton, ev)) {
             return false
         }
-        
+
         // For moves, if we aren't inside the button, check for drag.
         if (action == MotionEvent.ACTION_MOVE) {
             val dx = ev.rawX - initialTouchX
