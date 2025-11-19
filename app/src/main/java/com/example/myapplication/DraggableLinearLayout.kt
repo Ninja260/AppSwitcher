@@ -40,8 +40,8 @@ class DraggableLinearLayout @JvmOverloads constructor(
     private val dockPaddingDp = 0
     private var dockPaddingPx: Int = 0
 
-    private lateinit var minimizeExpandButton: ImageView
-    lateinit var appIconsContainer: LinearLayout
+    private var minimizeExpandButton: ImageView
+    var appIconsContainer: LinearLayout
 
     init {
         this.orientation = VERTICAL
