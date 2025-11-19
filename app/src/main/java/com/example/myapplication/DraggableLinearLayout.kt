@@ -9,6 +9,7 @@ import android.util.AttributeSet
 import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.ImageView
@@ -114,67 +115,75 @@ class DraggableLinearLayout @JvmOverloads constructor(
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        // Intercept all touch events to decide if it's a drag.
         if (!this::windowManager.isInitialized) return super.onInterceptTouchEvent(ev)
+        
+        val action = ev.action
+        if (action == MotionEvent.ACTION_DOWN) {
+            initialX = params.x
+            initialY = params.y
+            initialTouchX = ev.rawX
+            initialTouchY = ev.rawY
+            isDragging = false
+        }
+
+        // If it's inside the button, we don't start dragging immediately.
+        // We let onTouchEvent handle it to distinguish a click from a drag.
         if (isTouchInsideView(minimizeExpandButton, ev)) {
             return false
         }
-        when (ev.action) {
-            MotionEvent.ACTION_DOWN -> {
-                initialX = params.x
-                initialY = params.y
-                initialTouchX = ev.rawX
-                initialTouchY = ev.rawY
-                isDragging = false
-                return false
-            }
-            MotionEvent.ACTION_MOVE -> {
-                val dx = ev.rawX - initialTouchX
-                val dy = ev.rawY - initialTouchY
-                if (abs(dx) > touchSlop || abs(dy) > touchSlop) {
-                    isDragging = true
-                    return true
-                }
-            }
-            MotionEvent.ACTION_UP -> {
-                if (isDragging) return true
+        
+        // For moves, if we aren't inside the button, check for drag.
+        if (action == MotionEvent.ACTION_MOVE) {
+            val dx = ev.rawX - initialTouchX
+            val dy = ev.rawY - initialTouchY
+            if (abs(dx) > touchSlop || abs(dy) > touchSlop) {
+                isDragging = true
+                return true // Start dragging
             }
         }
-        return false
+
+        return super.onInterceptTouchEvent(ev)
     }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!this::windowManager.isInitialized) return super.onTouchEvent(event)
+
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                // Record initial positions. This is vital.
                 initialX = params.x
                 initialY = params.y
                 initialTouchX = event.rawX
                 initialTouchY = event.rawY
                 isDragging = false
-                return true
+                return true // We are interested in this gesture.
             }
+
             MotionEvent.ACTION_MOVE -> {
                 val dx = event.rawX - initialTouchX
                 val dy = event.rawY - initialTouchY
                 if (!isDragging && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
                     isDragging = true
                 }
+
                 if (isDragging) {
                     params.x = initialX + dx.toInt()
                     params.y = initialY + dy.toInt()
                     if (isAttachedToWindow) windowManager.updateViewLayout(this, params)
-                    return true
                 }
+                return true // Consume move events.
             }
+
             MotionEvent.ACTION_UP -> {
                 if (isDragging) {
+                    // Drag finished, snap to side and save.
                     val viewWidth = this.width
                     if (viewWidth > 0 && screenWidth > 0) {
                         val viewCenterX = params.x + viewWidth / 2
                         val screenCenterX = screenWidth / 2
-                        if (viewCenterX < screenCenterX) params.x = dockPaddingPx
-                        else params.x = screenWidth - viewWidth - dockPaddingPx
+                        params.x = if (viewCenterX < screenCenterX) dockPaddingPx else screenWidth - viewWidth - dockPaddingPx
                         if (isAttachedToWindow) windowManager.updateViewLayout(this, params)
                     }
                     sharedPreferences.edit {
@@ -182,17 +191,24 @@ class DraggableLinearLayout @JvmOverloads constructor(
                         putInt(prefsKeyY, params.y)
                     }
                     isDragging = false
-                    return true
+                    return true // Consumed.
+                } else {
+                    // This was a click, not a drag. Check if it's on the button.
+                    if (isTouchInsideView(minimizeExpandButton, event)) {
+                        minimizeExpandButton.performClick()
+                        return true // Consumed.
+                    }
                 }
             }
+
             MotionEvent.ACTION_CANCEL -> {
-                if (isDragging) isDragging = false
+                isDragging = false
             }
         }
         return super.onTouchEvent(event)
     }
 
-    private fun isTouchInsideView(view: android.view.View, event: MotionEvent): Boolean {
+    private fun isTouchInsideView(view: View, event: MotionEvent): Boolean {
         val localX = event.x
         val localY = event.y
         return localX >= view.left && localX <= view.right && localY >= view.top && localY <= view.bottom
