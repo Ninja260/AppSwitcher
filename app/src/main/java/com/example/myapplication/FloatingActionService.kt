@@ -4,7 +4,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.PixelFormat
@@ -21,8 +20,6 @@ import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.toColorInt
-import android.app.StatusBarManager
-import android.content.Context
 
 class FloatingActionService : Service() {
 
@@ -238,6 +235,9 @@ class FloatingActionService : Service() {
                     Log.e(tagName, "Error loading icon for $packageName: ${e.message}", e)
                 }
             }
+        }
+        if (isServiceRunning) {
+            currentFloatingView.requestLayout()
         }
     }
 
