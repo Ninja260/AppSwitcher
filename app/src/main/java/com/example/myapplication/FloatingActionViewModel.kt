@@ -1,8 +1,10 @@
 package com.example.myapplication
 
 import android.content.SharedPreferences
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 data class FloatingActionState(
     val x: Int = 0,
@@ -16,10 +18,10 @@ data class FloatingActionState(
 
 class FloatingActionViewModel(private val prefs: SharedPreferences) : ViewModel() {
 
-    var uiState = mutableStateOf(FloatingActionState())
-        private set
+    private val _uiState = MutableStateFlow(FloatingActionState())
+    val uiState: StateFlow<FloatingActionState> = _uiState.asStateFlow()
 
-    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, key ->
+    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
             ComposeFloatingActionService.KEY_SELECTED_APPS,
             ComposeFloatingActionService.KEY_FLOATING_ALPHA,
@@ -37,7 +39,7 @@ class FloatingActionViewModel(private val prefs: SharedPreferences) : ViewModel(
     }
 
     private fun loadInitialState() {
-        uiState.value = FloatingActionState(
+        _uiState.value = FloatingActionState(
             x = prefs.getInt(ComposeFloatingActionService.KEY_FLOATING_X, 0),
             y = prefs.getInt(ComposeFloatingActionService.KEY_FLOATING_Y, 100),
             isMinimized = prefs.getBoolean(ComposeFloatingActionService.KEY_FLOATING_MINIMIZED_STATE, false),
@@ -48,17 +50,19 @@ class FloatingActionViewModel(private val prefs: SharedPreferences) : ViewModel(
         )
     }
 
-    fun updatePosition(x: Int, y: Int) {
-        uiState.value = uiState.value.copy(x = x, y = y)
-        prefs.edit()
-            .putInt(ComposeFloatingActionService.KEY_FLOATING_X, x)
-            .putInt(ComposeFloatingActionService.KEY_FLOATING_Y, y)
-            .apply()
+    fun updatePosition(x: Int, y: Int, saveToPrefs: Boolean = true) {
+        _uiState.value = _uiState.value.copy(x = x, y = y)
+        if (saveToPrefs) {
+            prefs.edit()
+                .putInt(ComposeFloatingActionService.KEY_FLOATING_X, x)
+                .putInt(ComposeFloatingActionService.KEY_FLOATING_Y, y)
+                .apply()
+        }
     }
 
     fun toggleMinimized() {
-        val newMinimizedState = !uiState.value.isMinimized
-        uiState.value = uiState.value.copy(isMinimized = newMinimizedState)
+        val newMinimizedState = !_uiState.value.isMinimized
+        _uiState.value = _uiState.value.copy(isMinimized = newMinimizedState)
         prefs.edit().putBoolean(ComposeFloatingActionService.KEY_FLOATING_MINIMIZED_STATE, newMinimizedState).apply()
     }
 

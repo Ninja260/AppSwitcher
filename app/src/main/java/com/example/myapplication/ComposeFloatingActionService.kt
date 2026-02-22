@@ -10,16 +10,31 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import android.view.Gravity
 import android.view.WindowManager
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -33,6 +48,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
@@ -67,11 +83,20 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
 
     private lateinit var windowManager: WindowManager
     private lateinit var composeView: ComposeView
+    private lateinit var params: WindowManager.LayoutParams
     private val tagName = "ComposeFloatingActionService"
     private lateinit var viewModel: FloatingActionViewModel
 
     override fun onBind(intent: Intent?): IBinder? {
         return null
+    }
+
+    private fun updateWindowPosition(x: Int, y: Int) {
+        if (::composeView.isInitialized && composeView.isAttachedToWindow) {
+            params.x = x
+            params.y = y
+            windowManager.updateViewLayout(composeView, params)
+        }
     }
 
     override fun onCreate() {
@@ -86,21 +111,28 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val viewModelFactory = object : ViewModelProvider.Factory {
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                @Suppress("UNCHECKED_CAST")
-                return FloatingActionViewModel(prefs) as T
+                if (modelClass.isAssignableFrom(FloatingActionViewModel::class.java)) {
+                    @Suppress("UNCHECKED_CAST")
+                    return FloatingActionViewModel(prefs) as T
+                }
+                throw IllegalArgumentException("Unknown ViewModel class")
             }
         }
         viewModel = ViewModelProvider(this, viewModelFactory)[FloatingActionViewModel::class.java]
 
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
+        params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
-        )
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = viewModel.uiState.value.x
+            y = viewModel.uiState.value.y
+        }
 
         composeView = ComposeView(this).apply {
             setViewTreeLifecycleOwner(this@ComposeFloatingActionService)
@@ -108,7 +140,10 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
             setViewTreeSavedStateRegistryOwner(this@ComposeFloatingActionService)
 
             setContent {
-                FloatingActionComposable(viewModel)
+                FloatingActionComposable(
+                    viewModel = viewModel,
+                    onPositionUpdate = ::updateWindowPosition
+                )
             }
         }
 
@@ -162,27 +197,65 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
 }
 
 @Composable
-fun FloatingActionComposable(viewModel: FloatingActionViewModel) {
-    val uiState = viewModel.uiState.value
+fun FloatingActionComposable(
+    viewModel: FloatingActionViewModel,
+    onPositionUpdate: (Int, Int) -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val screenWidth = with(density) { configuration.screenWidthDp.dp.toPx() }
+    var composableWidth by remember { mutableStateOf(0) }
+
+    var offsetX by remember { mutableStateOf(uiState.x.toFloat()) }
+    var offsetY by remember { mutableStateOf(uiState.y.toFloat()) }
+
+    LaunchedEffect(uiState.x, uiState.y) {
+        offsetX = uiState.x.toFloat()
+        offsetY = uiState.y.toFloat()
+    }
 
     Box(
         modifier = Modifier
-            .offset {
-                IntOffset(uiState.x, uiState.y)
-            }
+            .onSizeChanged { composableWidth = it.width }
             .pointerInput(Unit) {
-                detectDragGestures {
-                    change, dragAmount ->
-                    change.consume()
-                    val currentX = viewModel.uiState.value.x
-                    val currentY = viewModel.uiState.value.y
-                    viewModel.updatePosition(
-                        currentX + dragAmount.x.roundToInt(),
-                        currentY + dragAmount.y.roundToInt()
-                    )
-                }
+                detectDragGestures(
+                    onDragStart = {
+                        offsetX = uiState.x.toFloat()
+                        offsetY = uiState.y.toFloat()
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        offsetX += dragAmount.x
+                        offsetY += dragAmount.y
+                        onPositionUpdate(offsetX.roundToInt(), offsetY.roundToInt())
+                    },
+                    onDragEnd = {
+                        coroutineScope.launch {
+                            val finalY = offsetY.roundToInt()
+                            val currentX = offsetX
+                            val targetX = if (currentX + composableWidth / 2 < screenWidth / 2) 0f else screenWidth - composableWidth
+
+                            Animatable(currentX).animateTo(
+                                targetX,
+                                animationSpec = tween(durationMillis = 300)
+                            ) { 
+                                offsetX = this.value
+                                onPositionUpdate(offsetX.roundToInt(), finalY)
+                            }
+                            // Persist the final position
+                            viewModel.updatePosition(targetX.roundToInt(), finalY, saveToPrefs = true)
+                        }
+                    }
+                )
             }
     ) {
-        Text("Hello, Compose! X=${uiState.x}, Y=${uiState.y}")
+        Text(
+            text = "Switch",
+            color = Color.Yellow,
+            fontWeight = FontWeight.Bold,
+            fontSize = 24.sp
+        )
     }
 }

@@ -79,12 +79,12 @@ For each item in this TODO list:
     *   [X] 10.2. **Draggable View:**
         *   [X] 10.2.1. Use `mutableStateOf` to store the view's X and Y offset.
         *   [X] 10.2.2. Use `Modifier.pointerInput { detectDragGestures { ... } }` to update the offset during a drag.
-    *   [ ] 10.3. **Snap-to-Edge:**
-        *   [ ] 10.3.1. In the `onDragEnd` callback of the drag gesture, determine the closest screen edge (left or right).
-        *   [ ] 10.3.2. Use `Animatable` or `animate*AsState` to animate the view to the snapped position.
-    *   [ ] 10.4. **Position Persistence:**
-        *   [ ] 10.4.1. On composable initialization, load the last saved X/Y coordinates from `SharedPreferences` and apply them to the state.
-        *   [ ] 10.4.2. After a drag and snap animation completes, save the new X/Y coordinates to `SharedPreferences`.
+    *   [X] 10.3. **Snap-to-Edge:**
+        *   [X] 10.3.1. In the `onDragEnd` callback of the drag gesture, determine the closest screen edge (left or right).
+        *   [X] 10.3.2. Use `Animatable` or `animate*AsState` to animate the view to the snapped position.
+    *   [X] 10.4. **Position Persistence:**
+        *   [X] 10.4.1. On composable initialization, load the last saved X/Y coordinates from `SharedPreferences` and apply them to the state.
+        *   [X] 10.4.2. After a drag and snap animation completes, save the new X/Y coordinates to `SharedPreferences`.
     *   [ ] 10.5. **Minimize/Expand Functionality:**
         *   [ ] 10.5.1. Use `mutableStateOf` to manage the expanded/collapsed state.
         *   [ ] 10.5.2. Create an `IconButton` that toggles the expansion state.
