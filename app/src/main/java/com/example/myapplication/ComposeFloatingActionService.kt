@@ -12,10 +12,17 @@ import android.os.IBinder
 import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -216,7 +224,7 @@ fun FloatingActionComposable(
         offsetY = uiState.y.toFloat()
     }
 
-    Box(
+    Column(
         modifier = Modifier
             .onSizeChanged { composableWidth = it.width }
             .pointerInput(Unit) {
@@ -249,13 +257,21 @@ fun FloatingActionComposable(
                         }
                     }
                 )
-            }
+            },
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "Switch",
-            color = Color.Yellow,
-            fontWeight = FontWeight.Bold,
-            fontSize = 24.sp
-        )
+        IconButton(onClick = { viewModel.toggleMinimized() }) {
+            Icon(
+                imageVector = if (uiState.isMinimized) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                contentDescription = if (uiState.isMinimized) "Expand" else "Minimize",
+                tint = Color.White
+            )
+        }
+        AnimatedVisibility(visible = !uiState.isMinimized) {
+            Column {
+                // Placeholder for app icons
+                Text(text = "Icons will be here", color = Color.White)
+            }
+        }
     }
 }

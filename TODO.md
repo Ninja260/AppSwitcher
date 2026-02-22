@@ -85,11 +85,11 @@ For each item in this TODO list:
     *   [X] 10.4. **Position Persistence:**
         *   [X] 10.4.1. On composable initialization, load the last saved X/Y coordinates from `SharedPreferences` and apply them to the state.
         *   [X] 10.4.2. After a drag and snap animation completes, save the new X/Y coordinates to `SharedPreferences`.
-    *   [ ] 10.5. **Minimize/Expand Functionality:**
-        *   [ ] 10.5.1. Use `mutableStateOf` to manage the expanded/collapsed state.
-        *   [ ] 10.5.2. Create an `IconButton` that toggles the expansion state.
-        *   [ ] 10.5.3. The icon inside the button should change based on the expansion state (e.g., up/down arrow).
-        *   [ ] 10.5.4. Use `AnimatedVisibility` to show or hide the container for the app icons.
+    *   [X] 10.5. **Minimize/Expand Functionality:**
+        *   [X] 10.5.1. Use `mutableStateOf` to manage the expanded/collapsed state.
+        *   [X] 10.5.2. Create an `IconButton` that toggles the expansion state.
+        *   [X] 10.5.3. The icon inside the button should change based on the expansion state (e.g., up/down arrow).
+        *   [X] 10.5.4. Use `AnimatedVisibility` to show or hide the container for the app icons.
     *   [ ] 10.6. **Dynamic App Icons Container:**
         *   [ ] 10.6.1. Use a `Row` or `LazyRow` to display the app icons.
         *   [ ] 10.6.2. The list of apps should be provided from the state holder. The UI should update automatically when the list changes.
