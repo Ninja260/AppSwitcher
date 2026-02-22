@@ -4,7 +4,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.PixelFormat
@@ -13,6 +12,7 @@ import android.os.IBinder
 import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -36,7 +36,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -127,6 +128,7 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
@@ -136,7 +138,7 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
         isServiceRunning = true
         Log.d(tagName, "onCreate called. isServiceRunning = true")
 
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         val viewModelFactory = object : ViewModelProvider.Factory {
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(FloatingActionViewModel::class.java)) {
@@ -184,7 +186,7 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
         val notificationIntent = Intent(this, SettingsActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this, 0, notificationIntent,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+            PendingIntent.FLAG_IMMUTABLE
         )
 
         val notification = NotificationCompat.Builder(this, channelId)
@@ -218,7 +220,7 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
                 description = descriptionText
             }
             val notificationManager: NotificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }
@@ -234,10 +236,10 @@ fun FloatingActionComposable(
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val screenWidth = with(density) { configuration.screenWidthDp.dp.toPx() }
-    var composableWidth by remember { mutableStateOf(0) }
+    var composableWidth by remember { mutableIntStateOf(0) }
 
-    var offsetX by remember { mutableStateOf(uiState.x.toFloat()) }
-    var offsetY by remember { mutableStateOf(uiState.y.toFloat()) }
+    var offsetX by remember { mutableFloatStateOf(uiState.x.toFloat()) }
+    var offsetY by remember { mutableFloatStateOf(uiState.y.toFloat()) }
 
     LaunchedEffect(uiState.x, uiState.y) {
         offsetX = uiState.x.toFloat()
@@ -313,7 +315,7 @@ fun FloatingActionComposable(
                                     val iconSizePx = with(density) { uiState.iconSize.dp.toPx().toInt() }
                                     val bitmap = iconDrawable.toBitmap(width = iconSizePx, height = iconSizePx).asImageBitmap()
                                     AppDataLoadState.Loaded(bitmap, appLabel)
-                                } catch (e: PackageManager.NameNotFoundException) {
+                                } catch (_: PackageManager.NameNotFoundException) {
                                     AppDataLoadState.NotFound
                                 }
                             }
