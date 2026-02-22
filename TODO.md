@@ -75,10 +75,10 @@ For each item in this TODO list:
     *   [X] 9.3. Set the content of the `ComposeView` to a new root composable (e.g., `FloatingActionComposable`).
 
 *   **[ ] 10. Implement the Floating Action Composable**
-    *   [ ] 10.1. **State Management:** Create a state holder class (e.g., a `ViewModel` or a plain state class) to manage the UI state (position, expansion status, app list).
-    *   [ ] 10.2. **Draggable View:**
-        *   [ ] 10.2.1. Use `mutableStateOf` to store the view's X and Y offset.
-        *   [ ] 10.2.2. Use `Modifier.pointerInput { detectDragGestures { ... } }` to update the offset during a drag.
+    *   [X] 10.1. **State Management:** Create a state holder class (e.g., a `ViewModel` or a plain state class) to manage the UI state (position, expansion status, app list).
+    *   [X] 10.2. **Draggable View:**
+        *   [X] 10.2.1. Use `mutableStateOf` to store the view's X and Y offset.
+        *   [X] 10.2.2. Use `Modifier.pointerInput { detectDragGestures { ... } }` to update the offset during a drag.
     *   [ ] 10.3. **Snap-to-Edge:**
         *   [ ] 10.3.1. In the `onDragEnd` callback of the drag gesture, determine the closest screen edge (left or right).
         *   [ ] 10.3.2. Use `Animatable` or `animate*AsState` to animate the view to the snapped position.
@@ -117,7 +117,7 @@ For each item in this TODO list:
     *   [ ] 15.2. Ensure the floating action behaves correctly across device reboots.
 *   **[ ] 16. Testing**
     *   [ ] 16.1. Unit tests for core logic (app selection, storage, launching).
-    *   [ ] 16.2. UI tests for the settings screen and floating action interactions.
+    *   [`~`  ] 16.2. UI tests for the settings screen and floating action interactions.
     *   [ ] 16.3. Manual testing on different devices and Android versions.
 
 ## Phase 5: Future Considerations (Post V1 Launch)
