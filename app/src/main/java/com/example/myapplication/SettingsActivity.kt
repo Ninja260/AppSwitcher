@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -31,6 +32,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -45,6 +48,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -55,6 +59,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -65,6 +70,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,7 +79,7 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner // Corrected import
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -81,6 +87,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
 import kotlin.math.roundToInt
+
 
 class SettingsActivity : ComponentActivity() {
 
@@ -99,10 +106,10 @@ class SettingsActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        if (FloatingActionService.isServiceRunning) {
+        if (ComposeFloatingActionService.isServiceRunning) {
             Log.d("SettingsActivity", "onStop: Service is running, sending UNSUPPRESS_UI intent.")
-            val intent = Intent(this, FloatingActionService::class.java).apply {
-                action = FloatingActionService.ACTION_UNSUPPRESS_UI
+            val intent = Intent(this, ComposeFloatingActionService::class.java).apply {
+                action = ComposeFloatingActionService.ACTION_UNSUPPRESS_UI
             }
             startService(intent)
         }
@@ -123,7 +130,7 @@ fun SettingsNavigator() {
 }
 
 private fun startFloatingActionService(context: Context) {
-    val intent = Intent(context, FloatingActionService::class.java)
+    val intent = Intent(context, ComposeFloatingActionService::class.java)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         context.startForegroundService(intent)
     } else {
@@ -132,7 +139,7 @@ private fun startFloatingActionService(context: Context) {
 }
 
 private fun stopFloatingActionService(context: Context) {
-    val intent = Intent(context, FloatingActionService::class.java)
+    val intent = Intent(context, ComposeFloatingActionService::class.java)
     context.stopService(intent)
 }
 
@@ -142,42 +149,42 @@ fun MainSettingsScreen(navController: NavController) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var isServiceEnabled by remember { mutableStateOf(FloatingActionService.isServiceRunning) }
+    var isServiceEnabled by remember { mutableStateOf(ComposeFloatingActionService.isServiceRunning) }
 
     val sharedPreferences = remember {
-        context.getSharedPreferences(FloatingActionService.PREFS_NAME, Context.MODE_PRIVATE)
+        context.getSharedPreferences(ComposeFloatingActionService.PREFS_NAME, Context.MODE_PRIVATE)
     }
 
     var selectedAppCount by remember {
         mutableIntStateOf(
             sharedPreferences.getStringSet(
-                FloatingActionService.KEY_SELECTED_APPS, emptySet()
+                ComposeFloatingActionService.KEY_SELECTED_APPS, emptySet()
             )?.size ?: 0
         )
     }
 
     var currentAlpha by remember {
-        mutableFloatStateOf(sharedPreferences.getFloat(FloatingActionService.KEY_FLOATING_ALPHA, 1.0f))
+        mutableFloatStateOf(sharedPreferences.getFloat(ComposeFloatingActionService.KEY_FLOATING_ALPHA, 1.0f))
     }
 
     var currentIconSizeDp by remember {
-        mutableFloatStateOf(sharedPreferences.getInt(FloatingActionService.KEY_FLOATING_ICON_SIZE, 48).toFloat())
+        mutableFloatStateOf(sharedPreferences.getInt(ComposeFloatingActionService.KEY_FLOATING_ICON_SIZE, 48).toFloat())
     }
 
     var currentMaxDockApps by remember {
-        mutableFloatStateOf(sharedPreferences.getInt(FloatingActionService.KEY_MAX_DOCK_APPS, 4).toFloat())
+        mutableFloatStateOf(sharedPreferences.getInt(ComposeFloatingActionService.KEY_MAX_DOCK_APPS, 4).toFloat())
     }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                isServiceEnabled = FloatingActionService.isServiceRunning
+                isServiceEnabled = ComposeFloatingActionService.isServiceRunning
                 selectedAppCount = sharedPreferences.getStringSet(
-                    FloatingActionService.KEY_SELECTED_APPS, emptySet()
+                    ComposeFloatingActionService.KEY_SELECTED_APPS, emptySet()
                 )?.size ?: 0
-                currentAlpha = sharedPreferences.getFloat(FloatingActionService.KEY_FLOATING_ALPHA, 1.0f)
-                currentIconSizeDp = sharedPreferences.getInt(FloatingActionService.KEY_FLOATING_ICON_SIZE, 48).toFloat()
-                currentMaxDockApps = sharedPreferences.getInt(FloatingActionService.KEY_MAX_DOCK_APPS, 4).toFloat()
+                currentAlpha = sharedPreferences.getFloat(ComposeFloatingActionService.KEY_FLOATING_ALPHA, 1.0f)
+                currentIconSizeDp = sharedPreferences.getInt(ComposeFloatingActionService.KEY_FLOATING_ICON_SIZE, 48).toFloat()
+                currentMaxDockApps = sharedPreferences.getInt(ComposeFloatingActionService.KEY_MAX_DOCK_APPS, 4).toFloat()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -189,16 +196,16 @@ fun MainSettingsScreen(navController: NavController) {
     DisposableEffect(sharedPreferences) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
             when (key) {
-                FloatingActionService.KEY_SELECTED_APPS -> {
+                ComposeFloatingActionService.KEY_SELECTED_APPS -> {
                     selectedAppCount = prefs.getStringSet(key, emptySet())?.size ?: 0
                 }
-                FloatingActionService.KEY_FLOATING_ALPHA -> {
+                ComposeFloatingActionService.KEY_FLOATING_ALPHA -> {
                     currentAlpha = prefs.getFloat(key, 1.0f)
                 }
-                FloatingActionService.KEY_FLOATING_ICON_SIZE -> {
+                ComposeFloatingActionService.KEY_FLOATING_ICON_SIZE -> {
                     currentIconSizeDp = prefs.getInt(key, 48).toFloat()
                 }
-                FloatingActionService.KEY_MAX_DOCK_APPS -> {
+                ComposeFloatingActionService.KEY_MAX_DOCK_APPS -> {
                     currentMaxDockApps = prefs.getInt(key, 4).toFloat()
                 }
             }
@@ -386,11 +393,11 @@ fun MainSettingsScreen(navController: NavController) {
                     },
                     onValueChangeFinished = {
                         sharedPreferences.edit {
-                            putFloat(FloatingActionService.KEY_FLOATING_ALPHA, currentAlpha)
+                            putFloat(ComposeFloatingActionService.KEY_FLOATING_ALPHA, currentAlpha)
                         }
-                        if (FloatingActionService.isServiceRunning) {
-                            val intent = Intent(context, FloatingActionService::class.java).apply {
-                                action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
+                        if (ComposeFloatingActionService.isServiceRunning) {
+                            val intent = Intent(context, ComposeFloatingActionService::class.java).apply {
+                                action = ComposeFloatingActionService.ACTION_REFRESH_FLOATING_VIEW
                             }
                             context.startService(intent)
                             Log.d("SettingsActivity", "Alpha changed, sent refresh intent.")
@@ -435,11 +442,11 @@ fun MainSettingsScreen(navController: NavController) {
                     },
                     onValueChangeFinished = {
                         sharedPreferences.edit {
-                            putInt(FloatingActionService.KEY_FLOATING_ICON_SIZE, currentIconSizeDp.roundToInt())
+                            putInt(ComposeFloatingActionService.KEY_FLOATING_ICON_SIZE, currentIconSizeDp.roundToInt())
                         }
-                        if (FloatingActionService.isServiceRunning) {
-                            val intent = Intent(context, FloatingActionService::class.java).apply {
-                                action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
+                        if (ComposeFloatingActionService.isServiceRunning) {
+                            val intent = Intent(context, ComposeFloatingActionService::class.java).apply {
+                                action = ComposeFloatingActionService.ACTION_REFRESH_FLOATING_VIEW
                             }
                             context.startService(intent)
                             Log.d("SettingsActivity", "Icon size changed, sent refresh intent.")
@@ -484,11 +491,11 @@ fun MainSettingsScreen(navController: NavController) {
                     },
                     onValueChangeFinished = {
                         sharedPreferences.edit {
-                            putInt(FloatingActionService.KEY_MAX_DOCK_APPS, currentMaxDockApps.roundToInt())
+                            putInt(ComposeFloatingActionService.KEY_MAX_DOCK_APPS, currentMaxDockApps.roundToInt())
                         }
-                        if (FloatingActionService.isServiceRunning) {
-                            val intent = Intent(context, FloatingActionService::class.java).apply {
-                                action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
+                        if (ComposeFloatingActionService.isServiceRunning) {
+                            val intent = Intent(context, ComposeFloatingActionService::class.java).apply {
+                                action = ComposeFloatingActionService.ACTION_REFRESH_FLOATING_VIEW
                             }
                             context.startService(intent)
                             Log.d("SettingsActivity", "Max dock apps changed, sent refresh intent.")
@@ -547,13 +554,13 @@ fun SettingsScreen(navController: NavController) {
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                if (FloatingActionService.isServiceRunning) {
+                if (ComposeFloatingActionService.isServiceRunning) {
                     Log.d(
                         "SettingsActivity",
                         "SettingsScreen ON_RESUME, service running, sending SUPPRESS_UI intent."
                     )
-                    val intent = Intent(context, FloatingActionService::class.java).apply {
-                        action = FloatingActionService.ACTION_SUPPRESS_UI
+                    val intent = Intent(context, ComposeFloatingActionService::class.java).apply {
+                        action = ComposeFloatingActionService.ACTION_SUPPRESS_UI
                     }
                     context.startService(intent)
                 } else {
@@ -570,9 +577,9 @@ fun SettingsScreen(navController: NavController) {
         onDispose {
             Log.d("SettingsActivity", "SettingsScreen disposed, removing observer.")
             lifecycleOwner.lifecycle.removeObserver(observer)
-            if (FloatingActionService.isServiceRunning) {
-                val intent = Intent(context, FloatingActionService::class.java).apply {
-                    action = FloatingActionService.ACTION_UNSUPPRESS_UI
+            if (ComposeFloatingActionService.isServiceRunning) {
+                val intent = Intent(context, ComposeFloatingActionService::class.java).apply {
+                    action = ComposeFloatingActionService.ACTION_UNSUPPRESS_UI
                 }
                 context.startService(intent)
                 Log.d(
@@ -609,71 +616,102 @@ fun SettingsScreen(navController: NavController) {
     }
 }
 
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreenContent(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val packageManager = context.packageManager
+
+    // State for all installed applications
+    var allApps by remember { mutableStateOf(emptyList<AppEntry>()) }
+    // State for selected applications (package names)
     val sharedPreferences = remember {
-        context.getSharedPreferences(FloatingActionService.PREFS_NAME, Context.MODE_PRIVATE)
+        context.getSharedPreferences(ComposeFloatingActionService.PREFS_NAME, Context.MODE_PRIVATE)
     }
-    var selectedApps by remember {
-        mutableStateOf(
-            sharedPreferences.getStringSet(
-                FloatingActionService.KEY_SELECTED_APPS, emptySet()
-            ) ?: emptySet()
-        )
-    }
+    var selectedApps by remember { mutableStateOf(sharedPreferences.getStringSet(ComposeFloatingActionService.KEY_SELECTED_APPS, emptySet()) ?: emptySet()) }
+    // State for search query
     var searchQuery by remember { mutableStateOf("") }
+    // State for filter toggle
     var showOnlySelected by remember { mutableStateOf(false) }
-
     // Read the max dock apps limit from SharedPreferences
-    val maxDockApps = sharedPreferences.getInt(FloatingActionService.KEY_MAX_DOCK_APPS, 4)
+    val maxDockApps = sharedPreferences.getInt(ComposeFloatingActionService.KEY_MAX_DOCK_APPS, 4)
 
-    val allLaunchableApps = remember {
-        val mainIntent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
-        val myPackageName = context.packageName
-        packageManager.queryIntentActivities(mainIntent, 0).mapNotNull {
-            try {
-                val appInfo = packageManager.getApplicationInfo(it.activityInfo.packageName, 0)
-                AppEntry(
-                    packageName = appInfo.packageName,
-                    label = packageManager.getApplicationLabel(appInfo).toString(),
-                    icon = packageManager.getApplicationIcon(appInfo)
-                )
-            } catch (_: PackageManager.NameNotFoundException) {
-                null
-            }
-        }.filter { it.packageName != myPackageName }.distinctBy { it.packageName }
-            .sortedBy { it.label }
-    }
-
-    val filteredApps = remember(searchQuery, allLaunchableApps, showOnlySelected, selectedApps) {
+    val filteredApps = remember(allApps, searchQuery, showOnlySelected, selectedApps) {
         val appsAfterSearch = if (searchQuery.isBlank()) {
-            allLaunchableApps
+            allApps
         } else {
-            allLaunchableApps.filter { it.label.contains(searchQuery, ignoreCase = true) }
+            allApps.filter { it.label.contains(searchQuery, ignoreCase = true) || it.packageName.contains(searchQuery, ignoreCase = true) }
         }
 
         if (showOnlySelected) {
             appsAfterSearch.filter { selectedApps.contains(it.packageName) }
-        }
-        else {
+        } else {
             appsAfterSearch
         }
     }
 
+    LaunchedEffect(Unit) {
+        val installedApps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
+            .filter { it.enabled } 
+            .mapNotNull { appInfo ->
+                try {
+                    val launchIntent = packageManager.getLaunchIntentForPackage(appInfo.packageName)
+                    if (launchIntent != null) {
+                        AppEntry(
+                            packageName = appInfo.packageName,
+                            label = packageManager.getApplicationLabel(appInfo).toString(),
+                            icon = packageManager.getApplicationIcon(appInfo)
+                        )
+                    } else null
+                } catch (e: PackageManager.NameNotFoundException) {
+                    null
+                }
+            }
+            .sortedBy { it.label } 
+        allApps = installedApps
+    }
+
+    DisposableEffect(sharedPreferences) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+            if (key == ComposeFloatingActionService.KEY_SELECTED_APPS) {
+                selectedApps = prefs.getStringSet(key, emptySet()) ?: emptySet()
+            }
+        }
+        sharedPreferences.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            sharedPreferences.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+
     Column(modifier = modifier.padding(16.dp)) {
-        TextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            label = { Text("Search by app name") },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search Icon") },
-            singleLine = true,
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 8.dp)
-        )
+                .padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("Search Applications") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = "Search")
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Clear search")
+                        }
+                    }
+                },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { /* Handle search action if needed */ })
+            )
+        }
 
         Row(
             modifier = Modifier
@@ -696,83 +734,62 @@ fun SettingsScreenContent(modifier: Modifier = Modifier) {
             }
         }
 
-        if (allLaunchableApps.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    "No launchable applications were found on this device.",
-                    textAlign = TextAlign.Center,
-                )
-            }
-        } else if (filteredApps.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                val text = if (showOnlySelected) {
-                    if (selectedApps.isEmpty()) {
-                        "No apps are selected. Disable the filter or select some apps."
-                    } else if (searchQuery.isNotBlank()) {
-                        "No selected apps match your search: \"$searchQuery\""
-                    } else {
-                        "No selected apps found."
-                    }
-                } else {
-                    if (searchQuery.isNotBlank()) {
-                        "No applications found matching your search: \"$searchQuery\""
-                    } else {
-                        // This case should ideally not be reached if allLaunchableApps is not empty.
-                        "No applications found."
-                    }
-                }
-                Text(text, textAlign = TextAlign.Center)
-            }
+        if (filteredApps.isEmpty() && searchQuery.isNotBlank()) {
+            Text(
+                text = "No applications found matching \"$searchQuery\"",
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            )
+        } else if (allApps.isEmpty()) {
+            Text(
+                text = "Loading applications...",
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            )
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f)
+            ) {
                 items(filteredApps, key = { it.packageName }) { app ->
                     AppListItem(
                         app = app,
                         isSelected = selectedApps.contains(app.packageName),
-                        onSelectionChanged = { packageName, isSelected -> // `isSelected` here is the NEW state
-                            val currentSelection = selectedApps.toMutableSet()
-                            if (isSelected) { // Trying to add an app
-                                if (currentSelection.size >= maxDockApps) {
+                        onSelectionChanged = { packageName, isSelected ->
+                            val newSelectedApps = selectedApps.toMutableSet()
+                            if (isSelected) {
+                                if (newSelectedApps.size >= maxDockApps) {
                                     Toast.makeText(
                                         context,
                                         "Maximum of $maxDockApps apps already selected. Please deselect an app first.",
                                         Toast.LENGTH_LONG
                                     ).show()
-                                    return@AppListItem // Do not proceed to add
+                                    return@AppListItem
                                 }
-                                currentSelection.add(packageName)
-                            } else { // Trying to remove an app
-                                currentSelection.remove(packageName)
-                            }
-                            selectedApps = currentSelection
-
-                            sharedPreferences.edit(commit = true) {
-                                putStringSet(
-                                    FloatingActionService.KEY_SELECTED_APPS, currentSelection
-                                )
-                            }
-                            Log.d(
-                                "SettingsActivity",
-                                "Committed to SharedPreferences. Selection: $currentSelection. Is empty: ${currentSelection.isEmpty()}."
-                            )
-
-                            if (FloatingActionService.isServiceRunning) {
-                                val serviceIntent =
-                                    Intent(context, FloatingActionService::class.java).apply {
-                                        action = FloatingActionService.ACTION_REFRESH_FLOATING_VIEW
-                                    }
-                                context.startService(serviceIntent)
-                                Log.d(
-                                    "SettingsActivity",
-                                    "Service running, sent refresh intent to service."
-                                )
+                                newSelectedApps.add(packageName)
                             } else {
-                                Log.d(
-                                    "SettingsActivity",
-                                    "Service not running, refresh intent NOT sent."
-                                )
+                                newSelectedApps.remove(packageName)
                             }
-                        })
+                            sharedPreferences.edit {
+                                putStringSet(ComposeFloatingActionService.KEY_SELECTED_APPS, newSelectedApps)
+                            }
+                            if (ComposeFloatingActionService.isServiceRunning) {
+                                val refreshIntent = Intent(context, ComposeFloatingActionService::class.java).apply {
+                                    action = ComposeFloatingActionService.ACTION_REFRESH_FLOATING_VIEW
+                                }
+                                context.startService(refreshIntent)
+                                Log.d("SettingsActivity", "App selection changed, sent refresh intent.")
+                            }
+                        }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = DividerDefaults.Thickness,
+                        color = DividerDefaults.color
+                    )
                 }
             }
         }

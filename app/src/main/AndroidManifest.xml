@@ -47,6 +47,15 @@
                 android:value="SYSTEM_ALERT_WINDOW" />
         </service>
 
+        <service
+            android:name=".ComposeFloatingActionService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" >
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="SYSTEM_ALERT_WINDOW" />
+        </service>
+
     </application>
 
 </manifest>

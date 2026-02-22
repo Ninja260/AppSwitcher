@@ -69,10 +69,10 @@ For each item in this TODO list:
 
 ## Phase 3: Refactor Floating Action to Jetpack Compose
 
-*   **[ ] 9. Initial Setup for Compose Refactoring**
-    *   [ ] 9.1. Create a new service to host the Jetpack Compose UI, or adapt the existing one.
-    *   [ ] 9.2. In the service, create a `ComposeView` and add it to the `WindowManager`.
-    *   [ ] 9.3. Set the content of the `ComposeView` to a new root composable (e.g., `FloatingActionComposable`).
+*   **[X] 9. Initial Setup for Compose Refactoring**
+    *   [X] 9.1. Create a new service to host the Jetpack Compose UI, or adapt the existing one.
+    *   [X] 9.2. In the service, create a `ComposeView` and add it to the `WindowManager`.
+    *   [X] 9.3. Set the content of the `ComposeView` to a new root composable (e.g., `FloatingActionComposable`).
 
 *   **[ ] 10. Implement the Floating Action Composable**
     *   [ ] 10.1. **State Management:** Create a state holder class (e.g., a `ViewModel` or a plain state class) to manage the UI state (position, expansion status, app list).
