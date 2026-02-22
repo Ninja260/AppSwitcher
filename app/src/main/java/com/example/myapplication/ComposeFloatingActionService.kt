@@ -13,7 +13,6 @@ import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -295,7 +294,7 @@ fun FloatingActionComposable(
                 tint = Color.White
             )
         }
-        AnimatedVisibility(visible = !uiState.isMinimized) {
+        if (!uiState.isMinimized) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
