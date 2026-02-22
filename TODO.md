@@ -74,7 +74,7 @@ For each item in this TODO list:
     *   [X] 9.2. In the service, create a `ComposeView` and add it to the `WindowManager`.
     *   [X] 9.3. Set the content of the `ComposeView` to a new root composable (e.g., `FloatingActionComposable`).
 
-*   **[ ] 10. Implement the Floating Action Composable**
+*   **[X] 10. Implement the Floating Action Composable**
     *   [X] 10.1. **State Management:** Create a state holder class (e.g., a `ViewModel` or a plain state class) to manage the UI state (position, expansion status, app list).
     *   [X] 10.2. **Draggable View:**
         *   [X] 10.2.1. Use `mutableStateOf` to store the view's X and Y offset.
@@ -90,12 +90,12 @@ For each item in this TODO list:
         *   [X] 10.5.2. Create an `IconButton` that toggles the expansion state.
         *   [X] 10.5.3. The icon inside the button should change based on the expansion state (e.g., up/down arrow).
         *   [X] 10.5.4. Use `AnimatedVisibility` to show or hide the container for the app icons.
-    *   [ ] 10.6. **Dynamic App Icons Container:**
-        *   [ ] 10.6.1. Use a `Row` or `LazyRow` to display the app icons.
-        *   [ ] 10.6.2. The list of apps should be provided from the state holder. The UI should update automatically when the list changes.
-    *   [ ] 10.7. **Click vs. Drag:**
-        *   [ ] 10.7.1. Apply `Modifier.pointerInput` for dragging to the main container.
-        *   [ ] 10.7.2. Apply a separate `Modifier.clickable` to the minimize/expand button to ensure gestures are handled correctly.
+    *   [X] 10.6. **Dynamic App Icons Container:**
+        *   [X] 10.6.1. Use a `Column` to display the app icons.
+        *   [X] 10.6.2. The list of apps should be provided from the state holder. The UI should update automatically when the list changes.
+    *   [X] 10.7. **Click vs. Drag:**
+        *   [X] 10.7.1. Apply `Modifier.pointerInput` for dragging to the main container.
+        *   [X] 10.7.2. Apply a separate `Modifier.clickable` to the minimize/expand button to ensure gestures are handled correctly.
 
 *   **[ ] 11. Integration and Cleanup**
     *   [ ] 11.1. Replace the old `DraggableLinearLayout` based implementation with the new Jetpack Compose implementation.

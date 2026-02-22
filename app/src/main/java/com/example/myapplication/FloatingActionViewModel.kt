@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import androidx.core.content.edit
 
 data class FloatingActionState(
     val x: Int = 0,
@@ -53,17 +54,34 @@ class FloatingActionViewModel(private val prefs: SharedPreferences) : ViewModel(
     fun updatePosition(x: Int, y: Int, saveToPrefs: Boolean = true) {
         _uiState.value = _uiState.value.copy(x = x, y = y)
         if (saveToPrefs) {
-            prefs.edit()
-                .putInt(ComposeFloatingActionService.KEY_FLOATING_X, x)
-                .putInt(ComposeFloatingActionService.KEY_FLOATING_Y, y)
-                .apply()
+            prefs.edit {
+                putInt(ComposeFloatingActionService.KEY_FLOATING_X, x)
+                    .putInt(ComposeFloatingActionService.KEY_FLOATING_Y, y)
+            }
         }
     }
 
     fun toggleMinimized() {
         val newMinimizedState = !_uiState.value.isMinimized
         _uiState.value = _uiState.value.copy(isMinimized = newMinimizedState)
-        prefs.edit().putBoolean(ComposeFloatingActionService.KEY_FLOATING_MINIMIZED_STATE, newMinimizedState).apply()
+        prefs.edit {
+            putBoolean(
+                ComposeFloatingActionService.KEY_FLOATING_MINIMIZED_STATE,
+                newMinimizedState
+            )
+        }
+    }
+
+    fun removeApp(packageName: String) {
+        val currentSelectedApps = _uiState.value.selectedApps.toMutableSet()
+        if (currentSelectedApps.remove(packageName)) {
+            prefs.edit {
+                putStringSet(
+                    ComposeFloatingActionService.KEY_SELECTED_APPS,
+                    currentSelectedApps
+                )
+            }
+        }
     }
 
     override fun onCleared() {
