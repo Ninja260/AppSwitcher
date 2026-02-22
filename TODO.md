@@ -48,7 +48,7 @@ For each item in this TODO list:
         *   [X] 7.2.3. Provide additional description of settings on the main setting page.
           *   [X] 7.2.3.1. Description text under "Enable App Switcher" switch. If the service is running, show "App Switcher service running.", else show "App Switcher service disabled."
           *   [X] 7.2.3.2. Add description text under "Selected Application", which show the number of application selected. This text will reflect the actual selected count with real time.
-    *   [X] 7.3. Enhance the App Selection Page (currently SettingsActivity):
+    *   **[X] 7.3. Enhance the App Selection Page (currently SettingsActivity):**
         *   [X] 7.3.1. Modify app list display: Remove the current behavior of sorting selected apps to the top of the list (apps will appear in a single, alphabetically sorted list, filterable by search and selection status).
         *   [X] 7.3.2. Implement search functionality: Add a search bar to allow users to filter the list of installed applications by name.
         *   [X] 7.3.3. Implement filter toggle: Add a control (e.g., a filter icon button) to allow users to switch the list view between "All Apps" and "Selected Apps Only".
@@ -67,25 +67,60 @@ For each item in this TODO list:
         *   [X] 8.3.2. Apply max number to app icons.
         *   [X] 8.3.3. Slider max number value will reflect to the app icons on the floating actions with real time.
 
-## Phase 3: Non-Functional Requirements & Testing
+## Phase 3: Refactor Floating Action to Jetpack Compose
 
-*   **[ ] 9. User Experience & Onboarding**
-    *   [ ] 9.1. Provide clear instructions on how to grant necessary permissions.
-    *   [ ] 9.2. Create a simple first-launch experience or tutorial.
-*   **[ ] 10. Performance Optimization**
-    *   [ ] 10.1. Profile and optimize the floating service for minimal CPU and memory usage.
-    *   [ ] 10.2. Ensure smooth animations and interactions for the floating action.
-*   **[ ] 11. Battery Usage Optimization**
-    *   [ ] 11.1. Analyze and minimize battery consumption by the foreground service. (See NOTICE.md regarding foreground service requirements)
-*   **[ ] 12. Robustness and Error Handling**
-    *   [ ] 12.1. Handle cases where selected apps are uninstalled.
-    *   [ ] 12.2. Ensure the floating action behaves correctly across device reboots.
-*   **[ ] 13. Testing**
-    *   [ ] 13.1. Unit tests for core logic (app selection, storage, launching).
-    *   [ ] 13.2. UI tests for the settings screen and floating action interactions.
-    *   [ ] 13.3. Manual testing on different devices and Android versions.
+*   **[ ] 9. Initial Setup for Compose Refactoring**
+    *   [ ] 9.1. Create a new service to host the Jetpack Compose UI, or adapt the existing one.
+    *   [ ] 9.2. In the service, create a `ComposeView` and add it to the `WindowManager`.
+    *   [ ] 9.3. Set the content of the `ComposeView` to a new root composable (e.g., `FloatingActionComposable`).
 
-## Phase 4: Future Considerations (Post V1 Launch)
+*   **[ ] 10. Implement the Floating Action Composable**
+    *   [ ] 10.1. **State Management:** Create a state holder class (e.g., a `ViewModel` or a plain state class) to manage the UI state (position, expansion status, app list).
+    *   [ ] 10.2. **Draggable View:**
+        *   [ ] 10.2.1. Use `mutableStateOf` to store the view's X and Y offset.
+        *   [ ] 10.2.2. Use `Modifier.pointerInput { detectDragGestures { ... } }` to update the offset during a drag.
+    *   [ ] 10.3. **Snap-to-Edge:**
+        *   [ ] 10.3.1. In the `onDragEnd` callback of the drag gesture, determine the closest screen edge (left or right).
+        *   [ ] 10.3.2. Use `Animatable` or `animate*AsState` to animate the view to the snapped position.
+    *   [ ] 10.4. **Position Persistence:**
+        *   [ ] 10.4.1. On composable initialization, load the last saved X/Y coordinates from `SharedPreferences` and apply them to the state.
+        *   [ ] 10.4.2. After a drag and snap animation completes, save the new X/Y coordinates to `SharedPreferences`.
+    *   [ ] 10.5. **Minimize/Expand Functionality:**
+        *   [ ] 10.5.1. Use `mutableStateOf` to manage the expanded/collapsed state.
+        *   [ ] 10.5.2. Create an `IconButton` that toggles the expansion state.
+        *   [ ] 10.5.3. The icon inside the button should change based on the expansion state (e.g., up/down arrow).
+        *   [ ] 10.5.4. Use `AnimatedVisibility` to show or hide the container for the app icons.
+    *   [ ] 10.6. **Dynamic App Icons Container:**
+        *   [ ] 10.6.1. Use a `Row` or `LazyRow` to display the app icons.
+        *   [ ] 10.6.2. The list of apps should be provided from the state holder. The UI should update automatically when the list changes.
+    *   [ ] 10.7. **Click vs. Drag:**
+        *   [ ] 10.7.1. Apply `Modifier.pointerInput` for dragging to the main container.
+        *   [ ] 10.7.2. Apply a separate `Modifier.clickable` to the minimize/expand button to ensure gestures are handled correctly.
+
+*   **[ ] 11. Integration and Cleanup**
+    *   [ ] 11.1. Replace the old `DraggableLinearLayout` based implementation with the new Jetpack Compose implementation.
+    *   [ ] 11.2. Remove the old XML layouts and view-based code for the floating action.
+    *   [ ] 11.3. Test all core features from `FLOATING_ACTION_REFACTORING.md` to ensure they work as expected in the new implementation.
+
+## Phase 4: Non-Functional Requirements & Testing
+
+*   **[ ] 12. User Experience & Onboarding**
+    *   [ ] 12.1. Provide clear instructions on how to grant necessary permissions.
+    *   [ ] 12.2. Create a simple first-launch experience or tutorial.
+*   **[ ] 13. Performance Optimization**
+    *   [ ] 13.1. Profile and optimize the floating service for minimal CPU and memory usage.
+    *   [ ] 13.2. Ensure smooth animations and interactions for the floating action.
+*   **[ ] 14. Battery Usage Optimization**
+    *   [ ] 14.1. Analyze and minimize battery consumption by the foreground service. (See NOTICE.md regarding foreground service requirements)
+*   **[ ] 15. Robustness and Error Handling**
+    *   [ ] 15.1. Handle cases where selected apps are uninstalled.
+    *   [ ] 15.2. Ensure the floating action behaves correctly across device reboots.
+*   **[ ] 16. Testing**
+    *   [ ] 16.1. Unit tests for core logic (app selection, storage, launching).
+    *   [ ] 16.2. UI tests for the settings screen and floating action interactions.
+    *   [ ] 16.3. Manual testing on different devices and Android versions.
+
+## Phase 5: Future Considerations (Post V1 Launch)
 
 *   [ ] Explore advanced customization options (appearance, size, transparency).
 *   [ ] Investigate support for shortcuts to specific app actions.
@@ -98,4 +133,3 @@ For each item in this TODO list:
 *   Prioritize tasks in Phase 1 to get a Minimum Viable Product (MVP).
 *   Regularly test on actual devices.
 *   Keep the PRD in mind for all feature implementations.
-
