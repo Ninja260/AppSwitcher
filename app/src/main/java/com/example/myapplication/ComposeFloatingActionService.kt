@@ -287,7 +287,10 @@ fun FloatingActionComposable(
             .padding(((uiState.iconSize / 3) / 2).coerceAtLeast(4).dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        IconButton(onClick = { viewModel.toggleMinimized() }) {
+        IconButton(
+            onClick = { viewModel.toggleMinimized() },
+            modifier = Modifier.size(uiState.iconSize.dp)
+        ) {
             Icon(
                 imageVector = if (uiState.isMinimized) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
                 contentDescription = if (uiState.isMinimized) "Expand" else "Minimize",
