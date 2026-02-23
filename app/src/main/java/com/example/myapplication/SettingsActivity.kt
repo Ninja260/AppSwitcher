@@ -304,6 +304,7 @@ fun MainSettingsScreen(navController: NavController) {
                 }
                 Switch(
                     checked = isServiceEnabled, onCheckedChange = { isChecked ->
+                        sharedPreferences.edit().putBoolean(BootCompletedReceiver.KEY_SERVICE_ENABLED, isChecked).apply()
                         if (isChecked) {
                             if (!Settings.canDrawOverlays(context)) {
                                 val intent = Intent(

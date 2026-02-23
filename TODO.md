@@ -79,45 +79,46 @@ For each item in this TODO list:
     *   [X] 10.2. **Draggable View:**
         *   [X] 10.2.1. Use `mutableStateOf` to store the view's X and Y offset.
         *   [X] 10.2.2. Use `Modifier.pointerInput { detectDragGestures { ... } }` to update the offset during a drag.
-    *   [X] 10.3. **Snap-to-Edge:**
+    *   **[X] 10.3. **Snap-to-Edge:**
         *   [X] 10.3.1. In the `onDragEnd` callback of the drag gesture, determine the closest screen edge (left or right).
         *   [X] 10.3.2. Use `Animatable` or `animate*AsState` to animate the view to the snapped position.
     *   [X] 10.4. **Position Persistence:**
         *   [X] 10.4.1. On composable initialization, load the last saved X/Y coordinates from `SharedPreferences` and apply them to the state.
         *   [X] 10.4.2. After a drag and snap animation completes, save the new X/Y coordinates to `SharedPreferences`.
-    *   [X] 10.5. **Minimize/Expand Functionality:**
+    *   **[X] 10.5. **Minimize/Expand Functionality:**
         *   [X] 10.5.1. Use `mutableStateOf` to manage the expanded/collapsed state.
         *   [X] 10.5.2. Create an `IconButton` that toggles the expansion state.
         *   [X] 10.5.3. The icon inside the button should change based on the expansion state (e.g., up/down arrow).
         *   [X] 10.5.4. Use `AnimatedVisibility` to show or hide the container for the app icons.
-    *   [X] 10.6. **Dynamic App Icons Container:**
+    *   **[X] 10.6. **Dynamic App Icons Container:**
         *   [X] 10.6.1. Use a `Column` to display the app icons.
         *   [X] 10.6.2. The list of apps should be provided from the state holder. The UI should update automatically when the list changes.
-    *   [X] 10.7. **Click vs. Drag:**
+    *   **[X] 10.7. **Click vs. Drag:**
         *   [X] 10.7.1. Apply `Modifier.pointerInput` for dragging to the main container.
         *   [X] 10.7.2. Apply a separate `Modifier.clickable` to the minimize/expand button to ensure gestures are handled correctly.
 
-*   **[ ] 11. Integration and Cleanup**
-    *   [ ] 11.1. Replace the old `DraggableLinearLayout` based implementation with the new Jetpack Compose implementation.
-    *   [ ] 11.2. Remove the old XML layouts and view-based code for the floating action.
-    *   [ ] 11.3. Test all core features from `FLOATING_ACTION_REFACTORING.md` to ensure they work as expected in the new implementation.
+*   **[X] 11. Integration and Cleanup**
+    *   [X] 11.1. Replace the old `DraggableLinearLayout` based implementation with the new Jetpack Compose implementation.
+    *   [X] 11.2. Remove the old XML layouts and view-based code for the floating action.
+    *   [X] 11.3. Test all core features from `FLOATING_ACTION_REFACTORING.md` to ensure they work as expected in the new implementation.
+
+*   **[X] 12. Robustness and Error Handling**
+    *   [X] 12.1. Handle cases where selected apps are uninstalled.
+    *   [X] 12.2. Ensure the floating action behaves correctly across device reboots. Use BOOT_FEATURE.md file as implementation reference.
 
 ## Phase 4: Non-Functional Requirements & Testing
 
-*   **[ ] 12. User Experience & Onboarding**
-    *   [ ] 12.1. Provide clear instructions on how to grant necessary permissions.
-    *   [ ] 12.2. Create a simple first-launch experience or tutorial.
-*   **[ ] 13. Performance Optimization**
-    *   [ ] 13.1. Profile and optimize the floating service for minimal CPU and memory usage.
-    *   [ ] 13.2. Ensure smooth animations and interactions for the floating action.
-*   **[ ] 14. Battery Usage Optimization**
-    *   [ ] 14.1. Analyze and minimize battery consumption by the foreground service. (See NOTICE.md regarding foreground service requirements)
-*   **[ ] 15. Robustness and Error Handling**
-    *   [ ] 15.1. Handle cases where selected apps are uninstalled.
-    *   [ ] 15.2. Ensure the floating action behaves correctly across device reboots.
+*   **[ ] 13. User Experience & Onboarding**
+    *   [ ] 13.1. Provide clear instructions on how to grant necessary permissions.
+    *   [ ] 13.2. Create a simple first-launch experience or tutorial.
+*   **[ ] 14. Performance Optimization**
+    *   [ ] 14.1. Profile and optimize the floating service for minimal CPU and memory usage.
+    *   [ ] 14.2. Ensure smooth animations and interactions for the floating action.
+*   **[ ] 15. Battery Usage Optimization**
+    *   [ ] 15.1. Analyze and minimize battery consumption by the foreground service. (See NOTICE.md regarding foreground service requirements)
 *   **[ ] 16. Testing**
     *   [ ] 16.1. Unit tests for core logic (app selection, storage, launching).
-    *   [`~`  ] 16.2. UI tests for the settings screen and floating action interactions.
+    *   [`~`  ] 16.2. UI tests for the settings screen and floating action interactions.
     *   [ ] 16.3. Manual testing on different devices and Android versions.
 
 ## Phase 5: Future Considerations (Post V1 Launch)

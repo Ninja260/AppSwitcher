@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- Required to post notifications on Android 13+ -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <queries>
         <intent>
@@ -39,15 +40,6 @@
         </activity>
 
         <service
-            android:name=".FloatingActionService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse" >
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="SYSTEM_ALERT_WINDOW" />
-        </service>
-
-        <service
             android:name=".ComposeFloatingActionService"
             android:exported="false"
             android:foregroundServiceType="specialUse" >
@@ -55,6 +47,15 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="SYSTEM_ALERT_WINDOW" />
         </service>
+
+        <receiver
+            android:name=".BootCompletedReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 
