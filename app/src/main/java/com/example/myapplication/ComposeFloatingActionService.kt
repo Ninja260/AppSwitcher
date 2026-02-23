@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.PixelFormat
@@ -12,7 +13,6 @@ import android.os.IBinder
 import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -35,8 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -88,7 +87,6 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
         const val ACTION_UNSUPPRESS_UI = "com.example.myapplication.ACTION_UNSUPPRESS_UI"
         const val PREFS_NAME = "app_switcher_prefs"
         const val KEY_SELECTED_APPS = "selected_app_packages"
-        const val KEY_FLOATING_X = "floating_x"
         const val KEY_FLOATING_Y = "floating_y"
         const val KEY_FLOATING_ALPHA = "floating_alpha"
         const val KEY_FLOATING_ICON_SIZE = "floating_icon_size"
@@ -127,7 +125,6 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
@@ -137,7 +134,7 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
         isServiceRunning = true
         Log.d(tagName, "onCreate called. isServiceRunning = true")
 
-        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val viewModelFactory = object : ViewModelProvider.Factory {
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(FloatingActionViewModel::class.java)) {
@@ -151,16 +148,17 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
 
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
-        params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = viewModel.uiState.value.x
-            y = viewModel.uiState.value.y
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                // Initial position is set in the composable
+            }
         }
 
         composeView = ComposeView(this).apply {
@@ -219,7 +217,7 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
                 description = descriptionText
             }
             val notificationManager: NotificationManager =
-                getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }
@@ -235,14 +233,18 @@ fun FloatingActionComposable(
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val screenWidth = with(density) { configuration.screenWidthDp.dp.toPx() }
-    var composableWidth by remember { mutableIntStateOf(0) }
+    var composableWidth by remember { mutableStateOf(0) }
 
-    var offsetX by remember { mutableFloatStateOf(uiState.x.toFloat()) }
-    var offsetY by remember { mutableFloatStateOf(uiState.y.toFloat()) }
+    var offsetX by remember { mutableStateOf(0f) }
+    var offsetY by remember { mutableStateOf(uiState.y.toFloat()) }
 
-    LaunchedEffect(uiState.x, uiState.y) {
-        offsetX = uiState.x.toFloat()
-        offsetY = uiState.y.toFloat()
+    LaunchedEffect(uiState.snapPosition, screenWidth, composableWidth) {
+        offsetX = if (uiState.snapPosition == SnapPosition.LEFT) {
+            0f
+        } else {
+            screenWidth - composableWidth
+        }
+        onPositionUpdate(offsetX.roundToInt(), offsetY.roundToInt())
     }
 
     Column(
@@ -251,8 +253,7 @@ fun FloatingActionComposable(
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = {
-                        offsetX = uiState.x.toFloat()
-                        offsetY = uiState.y.toFloat()
+                        // No change needed here
                     },
                     onDrag = { change, dragAmount ->
                         change.consume()
@@ -263,10 +264,14 @@ fun FloatingActionComposable(
                     onDragEnd = {
                         coroutineScope.launch {
                             val finalY = offsetY.roundToInt()
-                            val currentX = offsetX
-                            val targetX = if (currentX + composableWidth / 2 < screenWidth / 2) 0f else screenWidth - composableWidth
+                            val targetSnapPosition = if (offsetX + composableWidth / 2 < screenWidth / 2) {
+                                SnapPosition.LEFT
+                            } else {
+                                SnapPosition.RIGHT
+                            }
+                            val targetX = if (targetSnapPosition == SnapPosition.LEFT) 0f else screenWidth - composableWidth
 
-                            Animatable(currentX).animateTo(
+                            Animatable(offsetX).animateTo(
                                 targetX,
                                 animationSpec = tween(durationMillis = 300)
                             ) { 
@@ -274,7 +279,7 @@ fun FloatingActionComposable(
                                 onPositionUpdate(offsetX.roundToInt(), finalY)
                             }
                             // Persist the final position
-                            viewModel.updatePosition(targetX.roundToInt(), finalY, saveToPrefs = true)
+                            viewModel.updatePosition(targetSnapPosition, finalY, saveToPrefs = true)
                         }
                     }
                 )

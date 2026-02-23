@@ -7,8 +7,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import androidx.core.content.edit
 
+enum class SnapPosition { LEFT, RIGHT }
+
 data class FloatingActionState(
-    val x: Int = 0,
+    val snapPosition: SnapPosition = SnapPosition.LEFT,
     val y: Int = 100,
     val isMinimized: Boolean = false,
     val alpha: Float = 1.0f,
@@ -18,6 +20,10 @@ data class FloatingActionState(
 )
 
 class FloatingActionViewModel(private val prefs: SharedPreferences) : ViewModel() {
+
+    companion object {
+        const val KEY_FLOATING_SNAP_POSITION = "floating_snap_position"
+    }
 
     private val _uiState = MutableStateFlow(FloatingActionState())
     val uiState: StateFlow<FloatingActionState> = _uiState.asStateFlow()
@@ -40,8 +46,9 @@ class FloatingActionViewModel(private val prefs: SharedPreferences) : ViewModel(
     }
 
     private fun loadInitialState() {
+        val snapPosition = if (prefs.getInt(KEY_FLOATING_SNAP_POSITION, 0) == 0) SnapPosition.LEFT else SnapPosition.RIGHT
         _uiState.value = FloatingActionState(
-            x = prefs.getInt(ComposeFloatingActionService.KEY_FLOATING_X, 0),
+            snapPosition = snapPosition,
             y = prefs.getInt(ComposeFloatingActionService.KEY_FLOATING_Y, 100),
             isMinimized = prefs.getBoolean(ComposeFloatingActionService.KEY_FLOATING_MINIMIZED_STATE, false),
             alpha = prefs.getFloat(ComposeFloatingActionService.KEY_FLOATING_ALPHA, 1.0f),
@@ -51,11 +58,11 @@ class FloatingActionViewModel(private val prefs: SharedPreferences) : ViewModel(
         )
     }
 
-    fun updatePosition(x: Int, y: Int, saveToPrefs: Boolean = true) {
-        _uiState.value = _uiState.value.copy(x = x, y = y)
+    fun updatePosition(snapPosition: SnapPosition, y: Int, saveToPrefs: Boolean = true) {
+        _uiState.value = _uiState.value.copy(snapPosition = snapPosition, y = y)
         if (saveToPrefs) {
             prefs.edit {
-                putInt(ComposeFloatingActionService.KEY_FLOATING_X, x)
+                putInt(KEY_FLOATING_SNAP_POSITION, if (snapPosition == SnapPosition.LEFT) 0 else 1)
                     .putInt(ComposeFloatingActionService.KEY_FLOATING_Y, y)
             }
         }
