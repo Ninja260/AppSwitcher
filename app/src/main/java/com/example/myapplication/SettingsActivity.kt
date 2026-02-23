@@ -1,6 +1,8 @@
 package com.example.myapplication
 
 import android.Manifest
+import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -11,6 +13,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.view.accessibility.AccessibilityManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.ManagedActivityResultLauncher
@@ -40,6 +43,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -143,6 +147,17 @@ private fun stopFloatingActionService(context: Context) {
     context.stopService(intent)
 }
 
+private fun isAccessibilityServiceEnabled(context: Context, serviceClass: Class<out AccessibilityService>): Boolean {
+    val accessibilityManager = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    val enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+    for (service in enabledServices) {
+        if (service.resolveInfo.serviceInfo.name == serviceClass.name) {
+            return true
+        }
+    }
+    return false
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainSettingsScreen(navController: NavController) {
@@ -175,6 +190,8 @@ fun MainSettingsScreen(navController: NavController) {
         mutableFloatStateOf(sharedPreferences.getInt(ComposeFloatingActionService.KEY_MAX_DOCK_APPS, 4).toFloat())
     }
 
+    var isHotkeyServiceEnabled by remember { mutableStateOf(isAccessibilityServiceEnabled(context, HotkeyService::class.java)) }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -185,6 +202,7 @@ fun MainSettingsScreen(navController: NavController) {
                 currentAlpha = sharedPreferences.getFloat(ComposeFloatingActionService.KEY_FLOATING_ALPHA, 1.0f)
                 currentIconSizeDp = sharedPreferences.getInt(ComposeFloatingActionService.KEY_FLOATING_ICON_SIZE, 48).toFloat()
                 currentMaxDockApps = sharedPreferences.getInt(ComposeFloatingActionService.KEY_MAX_DOCK_APPS, 4).toFloat()
+                isHotkeyServiceEnabled = isAccessibilityServiceEnabled(context, HotkeyService::class.java)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -511,6 +529,36 @@ fun MainSettingsScreen(navController: NavController) {
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                 )
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                thickness = DividerDefaults.Thickness,
+                color = DividerDefaults.color
+            )
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                Text(
+                    text = "Global Hotkey Service",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "Enable this service to launch docked apps using keyboard shortcuts from anywhere.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 4.dp, top = 8.dp)
+                )
+                Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        text = if (isHotkeyServiceEnabled) "Hotkey service is active." else "Hotkey service is disabled.",
+                        color = if (isHotkeyServiceEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Button(onClick = {
+                        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                        context.startActivity(intent)
+                    }) {
+                        Text(if (isHotkeyServiceEnabled) "Configure" else "Enable")
+                    }
+                }
             }
         }
     }

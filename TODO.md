@@ -14,114 +14,61 @@ For each item in this TODO list:
 ## Phase 1: Core Functionality (MVP)
 
 *   **[X] 1. Project Setup & Basic Structure**
-    *   [X] 1.1. Confirm target Android SDK versions. (See NOTICE.md for implications)
-    *   [X] 1.2. Set up necessary permissions in `AndroidManifest.xml` (e.g., `SYSTEM_ALERT_WINDOW`). (See NOTICE.md)
 *   **[X] 2. Floating Action Service**
-    *   [X] 2.1. Create a foreground service to manage the floating action. (See NOTICE.md regarding foreground service requirements)
-    *   [X] 2.2. Implement logic to request "Display over other apps" permission from the user. (See NOTICE.md regarding SYSTEM_ALERT_WINDOW)
-    *   [X] 2.3. Design and implement the basic visual appearance of the floating action (e.g., a simple button or small panel).
 *   **[X] 3. App Selection & Storage**
-    *   [X] 3.1. Create a basic settings/configuration screen (Activity or Composable).
-    *   [X] 3.2. Implement functionality to list all installed applications on the device. (See NOTICE.md for critical package visibility considerations)
-    *   [X] 3.3. Allow users to select multiple apps from the list.
-    *   [X] 3.4. Store the list of user-selected apps persistently (e.g., using SharedPreferences or a simple database).
-    *   [X] 3.5. Show the selected apps at the top of the list in the settings screen.
 *   **[X] 4. Displaying App Shortcuts in Floating Action**
-    *   [X] 4.1. The floating action service should read the saved list of selected apps.
-    *   [X] 4.2. Dynamically display icons of the selected apps within the floating action interface.
-    *   [X] 4.3. Ensure icons are clear and identifiable.
 *   **[X] 5. App Switching Logic**
-    *   [X] 5.1. Implement the functionality to launch an app (or bring to foreground if already running) when its icon is tapped in the floating action.
-    *   [X] 5.2. If an app fails to launch (e.g., uninstalled), remove it from the floating action and persistent storage.
-    *   [X] 5.3. Test thoroughly on various Android versions and with different apps.
 
 ## Phase 2: UI/UX Enhancements & Polish
 
 *   **[X] 6. Floating Action Customization (Basic)**
-    *   [X] 6.1. Allow users to move the floating action element on the screen.
-    *   [X] 6.2. (Optional) Implement docking to screen edges.
 *   **[X] 7. Changes to Settings Module**
-    *   [X] 7.1. Allow users to remove apps from the selected list.
-    *   [X] 7.2. Create a main Settings screen with global controls:
-        *   [X] 7.2.1. Implement an "Enable App Switcher" switch on this main Settings screen to easily toggle the floating action service on/off.
-        *   [X] 7.2.2. Add a "Selected Applications" navigation item on the main Settings screen that, when clicked, opens the app selection page.
-        *   [X] 7.2.3. Provide additional description of settings on the main setting page.
-          *   [X] 7.2.3.1. Description text under "Enable App Switcher" switch. If the service is running, show "App Switcher service running.", else show "App Switcher service disabled."
-          *   [X] 7.2.3.2. Add description text under "Selected Application", which show the number of application selected. This text will reflect the actual selected count with real time.
-    *   **[X] 7.3. Enhance the App Selection Page (currently SettingsActivity):**
-        *   [X] 7.3.1. Modify app list display: Remove the current behavior of sorting selected apps to the top of the list (apps will appear in a single, alphabetically sorted list, filterable by search and selection status).
-        *   [X] 7.3.2. Implement search functionality: Add a search bar to allow users to filter the list of installed applications by name.
-        *   [X] 7.3.3. Implement filter toggle: Add a control (e.g., a filter icon button) to allow users to switch the list view between "All Apps" and "Selected Apps Only".
-        *   [X] 7.3.4. General UI/UX improvements: Further refine the app selection screen for better clarity and ease of use (e.g., improving visual distinction for selected items if not covered by filters, addressed floating view suppression/un-suppression logic when navigating to/from app selection screen).
 *   **[X] 8. Features for usability**
-    *   **[X] 8.1. Transparency of app icons in floating action**
-        *   [X] 8.1.1. Slider to adjust transparency on main setting page. The slider value will be stored to permanent storage.
-        *   [X] 8.1.2. Apply transparency to app icons and the floating action parent.
-        *   [X] 8.1.3. Slider transparency value will reflect to the app icons and the floating actions with real time.
-    *   **[X] 8.2. Set floating action app icons size**
-        *   [X] 8.2.1. Slider to adjust size on main setting page. The slider value will be stored to permanent storage.
-        *   [X] 8.2.2. Apply size to app icons.
-        *   [X] 8.2.3. Slider size value will reflect to the app icons on the floating actions with real time.
-    *   **[X] 8.3. Set max numbers of `dockabled` applications**
-        *   [X] 8.3.1. Slider to adjust max number of `dockabled` applications on main setting page. The slider value will be stored to permanent storage. The value can only be 2, 3 or 4.
-        *   [X] 8.3.2. Apply max number to app icons.
-        *   [X] 8.3.3. Slider max number value will reflect to the app icons on the floating actions with real time.
 
 ## Phase 3: Refactor Floating Action to Jetpack Compose
 
 *   **[X] 9. Initial Setup for Compose Refactoring**
-    *   [X] 9.1. Create a new service to host the Jetpack Compose UI, or adapt the existing one.
-    *   [X] 9.2. In the service, create a `ComposeView` and add it to the `WindowManager`.
-    *   [X] 9.3. Set the content of the `ComposeView` to a new root composable (e.g., `FloatingActionComposable`).
-
 *   **[X] 10. Implement the Floating Action Composable**
-    *   [X] 10.1. **State Management:** Create a state holder class (e.g., a `ViewModel` or a plain state class) to manage the UI state (position, expansion status, app list).
-    *   [X] 10.2. **Draggable View:**
-        *   [X] 10.2.1. Use `mutableStateOf` to store the view's X and Y offset.
-        *   [X] 10.2.2. Use `Modifier.pointerInput { detectDragGestures { ... } }` to update the offset during a drag.
-    *   **[X] 10.3. **Snap-to-Edge:**
-        *   [X] 10.3.1. In the `onDragEnd` callback of the drag gesture, determine the closest screen edge (left or right).
-        *   [X] 10.3.2. Use `Animatable` or `animate*AsState` to animate the view to the snapped position.
-    *   [X] 10.4. **Position Persistence:**
-        *   [X] 10.4.1. On composable initialization, load the last saved X/Y coordinates from `SharedPreferences` and apply them to the state.
-        *   [X] 10.4.2. After a drag and snap animation completes, save the new X/Y coordinates to `SharedPreferences`.
-    *   **[X] 10.5. **Minimize/Expand Functionality:**
-        *   [X] 10.5.1. Use `mutableStateOf` to manage the expanded/collapsed state.
-        *   [X] 10.5.2. Create an `IconButton` that toggles the expansion state.
-        *   [X] 10.5.3. The icon inside the button should change based on the expansion state (e.g., up/down arrow).
-        *   [X] 10.5.4. Use `AnimatedVisibility` to show or hide the container for the app icons.
-    *   **[X] 10.6. **Dynamic App Icons Container:**
-        *   [X] 10.6.1. Use a `Column` to display the app icons.
-        *   [X] 10.6.2. The list of apps should be provided from the state holder. The UI should update automatically when the list changes.
-    *   **[X] 10.7. **Click vs. Drag:**
-        *   [X] 10.7.1. Apply `Modifier.pointerInput` for dragging to the main container.
-        *   [X] 10.7.2. Apply a separate `Modifier.clickable` to the minimize/expand button to ensure gestures are handled correctly.
-
 *   **[X] 11. Integration and Cleanup**
-    *   [X] 11.1. Replace the old `DraggableLinearLayout` based implementation with the new Jetpack Compose implementation.
-    *   [X] 11.2. Remove the old XML layouts and view-based code for the floating action.
-    *   [X] 11.3. Test all core features from `FLOATING_ACTION_REFACTORING.md` to ensure they work as expected in the new implementation.
-
 *   **[X] 12. Robustness and Error Handling**
-    *   [X] 12.1. Handle cases where selected apps are uninstalled.
-    *   [X] 12.2. Ensure the floating action behaves correctly across device reboots. Use BOOT_FEATURE.md file as implementation reference.
 
-## Phase 4: Non-Functional Requirements & Testing
+## Phase 4: Global Hotkey Functionality (Accessibility Service)
 
-*   **[ ] 13. User Experience & Onboarding**
-    *   [ ] 13.1. Provide clear instructions on how to grant necessary permissions.
-    *   [ ] 13.2. Create a simple first-launch experience or tutorial.
-*   **[ ] 14. Performance Optimization**
-    *   [ ] 14.1. Profile and optimize the floating service for minimal CPU and memory usage.
-    *   [ ] 14.2. Ensure smooth animations and interactions for the floating action.
-*   **[ ] 15. Battery Usage Optimization**
-    *   [ ] 15.1. Analyze and minimize battery consumption by the foreground service. (See NOTICE.md regarding foreground service requirements)
-*   **[ ] 16. Testing**
-    *   [ ] 16.1. Unit tests for core logic (app selection, storage, launching).
-    *   [`~`  ] 16.2. UI tests for the settings screen and floating action interactions.
-    *   [ ] 16.3. Manual testing on different devices and Android versions.
+*   **[X] 13. Core Hotkey Service (MVP)**
+    *   [X] 13.1. Create `HotkeyService.kt` that extends `AccessibilityService`.
+    *   [X] 13.2. Create `res/xml/accessibility_service_config.xml` to specify event filtering.
+    *   [X] 13.3. Declare the service in `AndroidManifest.xml`.
+    *   [X] 13.4. Implement the default hotkey logic in `onKeyEvent()`.
+    *   [X] 13.5. Add a settings screen UI to enable the service.
 
-## Phase 5: Future Considerations (Post V1 Launch)
+## Phase 5: Advanced Hotkey Features
+
+*   **[ ] 14. Hotkey Customization UI**
+    *   [ ] 14.1. Define `SharedPreferences` keys for storing custom hotkeys for 4 dock apps and the "last app switch" function.
+    *   [ ] 14.2. Create a new `HotkeySettingsScreen.kt` for managing hotkey assignments.
+    *   [ ] 14.3. Implement the UI with options to display, change, and clear the hotkey for each of the 5 configurable shortcuts.
+    *   [ ] 14.4. Update `HotkeyService` to load and use these custom hotkeys instead of the hard-coded defaults.
+*   **[ ] 15. "Last Two Apps" Switching**
+    *   [ ] 15.1. In `HotkeyService`, implement `onAccessibilityEvent()` to track `TYPE_WINDOW_STATE_CHANGED` events and identify foreground apps.
+    *   [ ] 15.2. Maintain an in-memory list of the last two unique foreground applications.
+    *   [ ] 15.3. When the assigned hotkey is pressed, implement the logic to launch the second app from the recent apps list.
+
+## Phase 6: Non-Functional Requirements & Testing
+
+*   **[ ] 16. User Experience & Onboarding**
+    *   [ ] 16.1. Provide clear instructions on how to grant necessary permissions (especially for Accessibility Service).
+    *   [ ] 16.2. Create a simple first-launch experience or tutorial.
+*   **[ ] 17. Performance Optimization**
+    *   [ ] 17.1. Profile and optimize the floating service for minimal CPU and memory usage.
+    *   [ ] 17.2. Ensure smooth animations and interactions for the floating action.
+*   **[ ] 18. Battery Usage Optimization**
+    *   [ ] 18.1. Analyze and minimize battery consumption by both the foreground and accessibility services.
+*   **[ ] 19. Testing**
+    *   [ ] 19.1. Unit tests for core logic (app selection, storage, launching, hotkey parsing).
+    *   [`~`] 19.2. UI tests for the settings screens and floating action interactions.
+    *   [ ] 19.3. Manual testing on different devices and Android versions, with physical keyboards.
+
+## Phase 7: Future Considerations (Post V1 Launch)
 
 *   [ ] Explore advanced customization options (appearance, size, transparency).
 *   [ ] Investigate support for shortcuts to specific app actions.
