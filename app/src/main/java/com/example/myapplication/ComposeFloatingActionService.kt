@@ -92,6 +92,15 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
         const val KEY_FLOATING_ICON_SIZE = "floating_icon_size"
         const val KEY_MAX_DOCK_APPS = "max_dock_apps"
         const val KEY_FLOATING_MINIMIZED_STATE = "floating_minimized_state"
+
+        // Hotkey Customization Keys
+        const val KEY_HOTKEY_TRIGGER_MODIFIER = "hotkey_trigger_modifier"
+        const val KEY_HOTKEY_ACTION_1 = "hotkey_action_1"
+        const val KEY_HOTKEY_ACTION_2 = "hotkey_action_2"
+        const val KEY_HOTKEY_ACTION_3 = "hotkey_action_3"
+        const val KEY_HOTKEY_ACTION_4 = "hotkey_action_4"
+        const val KEY_HOTKEY_ACTION_LAST_APP = "hotkey_action_last_app"
+
         @Volatile
         var isServiceRunning: Boolean = false
     }
