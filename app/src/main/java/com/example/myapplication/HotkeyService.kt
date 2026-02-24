@@ -12,71 +12,82 @@ import android.view.accessibility.AccessibilityEvent
 class HotkeyService : AccessibilityService() {
 
     private val tag = "HotkeyService"
-    private var lastAltPressTime: Long = 0
+    private var lastTriggerPressTime: Long = 0
     private val doublePressThreshold = 2000 // Milliseconds
-    private var isWaitingForNumber = false
+    private var isWaitingForActionKey = false
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // This will be used in Phase 3 for tracking window state changes.
     }
 
     override fun onKeyEvent(event: KeyEvent?): Boolean {
-        if (event == null) return super.onKeyEvent(event)
-
-        val isKeyDown = event.action == KeyEvent.ACTION_DOWN
-        val keyCode = event.keyCode
-
-        // We only care about key down events for triggering actions
-        if (!isKeyDown) {
+        if (event == null || event.action != KeyEvent.ACTION_DOWN) {
             return super.onKeyEvent(event)
         }
 
-        Log.d(tag, "onKeyEvent: ${KeyEvent.keyCodeToString(keyCode)}, Action: DOWN")
+        // NOTE: For simplicity, settings are loaded on every key event. A more optimized
+        // approach would be to load them once and refresh via a broadcast or service command.
+        val prefs = getSharedPreferences(ComposeFloatingActionService.PREFS_NAME, Context.MODE_PRIVATE)
+        val triggerKeyCode = prefs.getInt(ComposeFloatingActionService.KEY_HOTKEY_TRIGGER_MODIFIER, KeyEvent.KEYCODE_ALT_LEFT)
+        val actionKey1 = prefs.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_1, KeyEvent.KEYCODE_1)
+        val actionKey2 = prefs.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_2, KeyEvent.KEYCODE_2)
+        val actionKey3 = prefs.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_3, KeyEvent.KEYCODE_3)
+        val actionKey4 = prefs.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_4, KeyEvent.KEYCODE_4)
+        val lastAppActionKey = prefs.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_LAST_APP, KeyEvent.KEYCODE_UNKNOWN)
 
-        // 1. Detect Alt-Alt double press
-        if (keyCode == KeyEvent.KEYCODE_ALT_LEFT || keyCode == KeyEvent.KEYCODE_ALT_RIGHT) {
+        val currentKeyCode = event.keyCode
+
+        // 1. Detect Trigger-Trigger double press
+        if (isTriggerKey(currentKeyCode, triggerKeyCode)) {
             val currentTime = SystemClock.uptimeMillis()
-            if (currentTime - lastAltPressTime < doublePressThreshold) {
+            if (currentTime - lastTriggerPressTime < doublePressThreshold) {
                 // Double press detected
-                isWaitingForNumber = true
-                lastAltPressTime = 0 // Reset to prevent triple press from triggering
-                Log.d(tag, "Alt double press detected. Waiting for a number key.")
-                // We consume the second Alt press to avoid it interfering with anything
-                return true
+                isWaitingForActionKey = true
+                lastTriggerPressTime = 0 // Reset to prevent triple press from triggering
+                Log.d(tag, "Trigger key double press detected. Waiting for an action key.")
+                return true // Consume the event
             } else {
-                // This is the first Alt press (or a press after a long delay)
-                lastAltPressTime = currentTime
-                // We don't set isWaitingForNumber to false here, because another key might reset it.
+                // This is the first press
+                lastTriggerPressTime = currentTime
             }
-            // We don't consume the first Alt press, allowing it to function normally
+            // Allow the first press to be handled by the system (e.g., for standard Alt-Tab)
             return super.onKeyEvent(event)
         }
 
-        // 2. If double-press was detected, look for a number key
-        if (isWaitingForNumber) {
-            val appIndex = when (keyCode) {
-                KeyEvent.KEYCODE_1 -> 0
-                KeyEvent.KEYCODE_2 -> 1
-                KeyEvent.KEYCODE_3 -> 2
-                KeyEvent.KEYCODE_4 -> 3
+        // 2. If double-press was detected, look for an action key
+        if (isWaitingForActionKey) {
+            val appIndex = when (currentKeyCode) {
+                actionKey1 -> 0
+                actionKey2 -> 1
+                actionKey3 -> 2
+                actionKey4 -> 3
                 else -> -1
             }
 
             // Always reset the waiting state after the next key press
-            isWaitingForNumber = false
+            isWaitingForActionKey = false
 
             if (appIndex != -1) {
-                Log.d(tag, "Hotkey 'Alt, Alt, ${appIndex + 1}' detected. Launching app.")
+                Log.d(tag, "Hotkey sequence detected for app ${appIndex + 1}. Launching.")
                 launchApp(appIndex)
-                // Consume the number key event because it was part of our hotkey
-                return true
+                return true // Consume the action key event
             }
-            // If it wasn't a number key, we fall through and let the event be handled by the system
-            // because we already reset the isWaitingForNumber flag.
+            // TODO: Add logic for lastAppActionKey
         }
 
         // If not part of our hotkey sequence, pass the event on.
         return super.onKeyEvent(event)
+    }
+
+    // Helper to check if the pressed key matches the configured trigger key, handling left/right variants.
+    private fun isTriggerKey(pressedKeyCode: Int, configuredKeyCode: Int): Boolean {
+        return when (configuredKeyCode) {
+            KeyEvent.KEYCODE_ALT_LEFT -> pressedKeyCode == KeyEvent.KEYCODE_ALT_LEFT || pressedKeyCode == KeyEvent.KEYCODE_ALT_RIGHT
+            KeyEvent.KEYCODE_CTRL_LEFT -> pressedKeyCode == KeyEvent.KEYCODE_CTRL_LEFT || pressedKeyCode == KeyEvent.KEYCODE_CTRL_RIGHT
+            KeyEvent.KEYCODE_SHIFT_LEFT -> pressedKeyCode == KeyEvent.KEYCODE_SHIFT_LEFT || pressedKeyCode == KeyEvent.KEYCODE_SHIFT_RIGHT
+            KeyEvent.KEYCODE_META_LEFT -> pressedKeyCode == KeyEvent.KEYCODE_META_LEFT || pressedKeyCode == KeyEvent.KEYCODE_META_RIGHT
+            else -> pressedKeyCode == configuredKeyCode // Should not happen with current UI
+        }
     }
 
     private fun launchApp(index: Int) {
@@ -109,7 +120,6 @@ class HotkeyService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         Log.d(tag, "HotkeyService connected. Programmatically setting flags.")
-        // Programmatically setting the flags is a more robust way to ensure the service gets key events.
         val info = serviceInfo
         info.flags = info.flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
         this.serviceInfo = info

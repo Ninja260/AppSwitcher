@@ -130,6 +130,9 @@ fun SettingsNavigator() {
         composable("app_selection") {
             SettingsScreen(navController = navController)
         }
+        composable("hotkey_settings") { // New route for hotkey settings
+            HotkeySettingsScreen(navController = navController)
+        }
     }
 }
 
@@ -559,6 +562,42 @@ fun MainSettingsScreen(navController: NavController) {
                         Text(if (isHotkeyServiceEnabled) "Configure" else "Enable")
                     }
                 }
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                thickness = DividerDefaults.Thickness,
+                color = DividerDefaults.color
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { navController.navigate("hotkey_settings") } // Navigate to new screen
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                ) {
+                    Text(
+                        text = "Hotkey Customization",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "Configure keyboard shortcuts for launching apps.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(
+                            start = 4.dp, top = 8.dp
+                        )
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "Customize hotkeys"
+                )
             }
         }
     }
