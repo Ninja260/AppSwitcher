@@ -207,10 +207,10 @@ fun HotkeySettingsScreen(navController: NavController) {
     // State for the action keys for the 4 dock apps
     val actionKeyCodes = remember {
         mutableStateListOf(
-            sharedPreferences.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_1, KeyEvent.KEYCODE_1),
-            sharedPreferences.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_2, KeyEvent.KEYCODE_2),
-            sharedPreferences.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_3, KeyEvent.KEYCODE_3),
-            sharedPreferences.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_4, KeyEvent.KEYCODE_4)
+            sharedPreferences.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_1, KeyEvent.KEYCODE_J),
+            sharedPreferences.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_2, KeyEvent.KEYCODE_K),
+            sharedPreferences.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_3, KeyEvent.KEYCODE_L),
+            sharedPreferences.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_4, KeyEvent.KEYCODE_SEMICOLON)
         )
     }
 

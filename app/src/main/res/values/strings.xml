@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">App Switcher</string>
-    <string name="accessibility_service_description">This service allows App Switcher to listen for keyboard shortcuts (hotkeys) even when the app is in the background. This enables you to launch your docked applications from anywhere by pressing a key combination (e.g., Super + 1). The service requires permission to filter key events to make this feature work.</string>
+    <string name="accessibility_service_description">This service allows App Switcher to listen for keyboard shortcuts (hotkeys) even when the app is in the background. This enables you to launch your docked applications from anywhere by using a configurable key sequence (e.g., double-pressing Alt, then pressing J). The service requires permission to filter key events to make this feature work.</string>
 </resources>

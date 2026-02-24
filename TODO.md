@@ -52,7 +52,7 @@ For each item in this TODO list:
 ## Phase 6: Non-Functional Requirements & Testing
 
 *   **[ ] 16. User Experience & Onboarding**
-    *   [ ] 16.1. Provide clear instructions on how to grant necessary permissions (especially for Accessibility Service).
+    *   [X] 16.1. Provide clear instructions on how to grant necessary permissions (especially for Accessibility Service).
     *   [ ] 16.2. Create a simple first-launch experience or tutorial.
 *   **[ ] 17. Performance Optimization**
     *   [ ] 17.1. Profile and optimize the floating service for minimal CPU and memory usage.
