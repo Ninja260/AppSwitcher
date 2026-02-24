@@ -21,6 +21,11 @@ class HotkeyService : AccessibilityService() {
     private val recentApps = LinkedList<String>()
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // If the main service is disabled, do nothing.
+        if (!ComposeFloatingActionService.isServiceRunning) {
+            return
+        }
+
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val packageName = event.packageName?.toString() ?: return
 
@@ -43,6 +48,11 @@ class HotkeyService : AccessibilityService() {
     }
 
     override fun onKeyEvent(event: KeyEvent?): Boolean {
+        // If the main service is disabled, pass all key events through without processing.
+        if (!ComposeFloatingActionService.isServiceRunning) {
+            return super.onKeyEvent(event)
+        }
+
         if (event == null || event.action != KeyEvent.ACTION_DOWN) {
             return super.onKeyEvent(event)
         }
