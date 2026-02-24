@@ -99,7 +99,6 @@ class ComposeFloatingActionService : Service(), LifecycleOwner, ViewModelStoreOw
         const val KEY_HOTKEY_ACTION_2 = "hotkey_action_2"
         const val KEY_HOTKEY_ACTION_3 = "hotkey_action_3"
         const val KEY_HOTKEY_ACTION_4 = "hotkey_action_4"
-        const val KEY_HOTKEY_ACTION_LAST_APP = "hotkey_action_last_app"
 
         @Volatile
         var isServiceRunning: Boolean = false

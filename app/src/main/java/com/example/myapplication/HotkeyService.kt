@@ -8,7 +8,6 @@ import android.os.SystemClock
 import android.util.Log
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
-import java.util.LinkedList
 
 class HotkeyService : AccessibilityService() {
 
@@ -17,34 +16,12 @@ class HotkeyService : AccessibilityService() {
     private val doublePressThreshold = 2000 // Milliseconds
     private var isWaitingForActionKey = false
 
-    // In-memory list to track the last two unique foreground apps
-    private val recentApps = LinkedList<String>()
-
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // If the main service is disabled, do nothing.
         if (!ComposeFloatingActionService.isServiceRunning) {
             return
         }
-
-        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            val packageName = event.packageName?.toString() ?: return
-
-            // Filter out events from the launcher, this app, or invalid packages
-            if (packageName == "com.example.myapplication" || isLauncher(packageName)) {
-                return
-            }
-            
-            // If the list is empty or the new app is different from the most recent one
-            if (recentApps.isEmpty() || recentApps.first != packageName) {
-                recentApps.addFirst(packageName)
-                Log.d(tag, "App switched to: $packageName. Recent apps list: $recentApps")
-            }
-
-            // Keep the list size at a maximum of 2
-            while (recentApps.size > 2) {
-                recentApps.removeLast()
-            }
-        }
+        // This service no longer needs to track window state changes.
     }
 
     override fun onKeyEvent(event: KeyEvent?): Boolean {
@@ -63,7 +40,6 @@ class HotkeyService : AccessibilityService() {
         val actionKey2 = prefs.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_2, KeyEvent.KEYCODE_2)
         val actionKey3 = prefs.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_3, KeyEvent.KEYCODE_3)
         val actionKey4 = prefs.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_4, KeyEvent.KEYCODE_4)
-        val lastAppActionKey = prefs.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_LAST_APP, KeyEvent.KEYCODE_UNKNOWN)
 
         val currentKeyCode = event.keyCode
 
@@ -97,30 +73,10 @@ class HotkeyService : AccessibilityService() {
                 Log.d(tag, "Hotkey sequence detected for app ${appIndex + 1}. Launching.")
                 launchAppByIndex(appIndex)
                 return true
-            } else if (currentKeyCode == lastAppActionKey && currentKeyCode != KeyEvent.KEYCODE_UNKNOWN) {
-                Log.d(tag, "Hotkey sequence for last app detected.")
-                switchToLastApp()
-                return true
             }
         }
 
         return super.onKeyEvent(event)
-    }
-
-    private fun isLauncher(packageName: String): Boolean {
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-        val resolveInfo = packageManager.resolveActivity(intent, 0)
-        return resolveInfo?.activityInfo?.packageName == packageName
-    }
-
-    private fun switchToLastApp() {
-        if (recentApps.size > 1) {
-            val lastAppPackage = recentApps[1] // The second element is the "last" app
-            Log.d(tag, "Switching to last app: $lastAppPackage")
-            launchAppByPackageName(lastAppPackage)
-        } else {
-            Log.d(tag, "Not enough recent apps to switch.")
-        }
     }
 
     // Helper to check if the pressed key matches the configured trigger key, handling left/right variants.
@@ -169,8 +125,6 @@ class HotkeyService : AccessibilityService() {
         Log.d(tag, "HotkeyService connected. Programmatically setting flags.")
         val info = serviceInfo
         info.flags = info.flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
-        // We also need to request window state change events
-        info.eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
         this.serviceInfo = info
     }
 }

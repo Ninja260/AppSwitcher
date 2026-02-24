@@ -214,11 +214,6 @@ fun HotkeySettingsScreen(navController: NavController) {
         )
     }
 
-    // State for the "last app" action key
-    var lastAppActionKey by remember {
-        mutableStateOf(sharedPreferences.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_LAST_APP, KeyEvent.KEYCODE_UNKNOWN))
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -244,7 +239,6 @@ fun HotkeySettingsScreen(navController: NavController) {
                         sharedPreferences.edit {
                             putInt(ComposeFloatingActionService.KEY_HOTKEY_TRIGGER_MODIFIER, newKey.keyCode)
                         }
-                        // TODO: Signal HotkeyService to reload settings
                     }
                 )
             }
@@ -270,25 +264,6 @@ fun HotkeySettingsScreen(navController: NavController) {
                             }
                             putInt(key, newKeyCode)
                         }
-                        // TODO: Signal HotkeyService to reload settings
-                    }
-                )
-            }
-            
-            item {
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            }
-            
-            item {
-                 ActionKeyPreference(
-                    title = "Switch to Last App",
-                    currentKeyCode = lastAppActionKey,
-                    onKeySelected = { newKeyCode ->
-                        lastAppActionKey = newKeyCode
-                        sharedPreferences.edit {
-                            putInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_LAST_APP, newKeyCode)
-                        }
-                        // TODO: Signal HotkeyService to reload settings
                     }
                 )
             }
