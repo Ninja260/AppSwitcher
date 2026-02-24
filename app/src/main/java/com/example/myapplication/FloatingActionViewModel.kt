@@ -13,7 +13,7 @@ data class FloatingActionState(
     val snapPosition: SnapPosition = SnapPosition.LEFT,
     val y: Int = 100,
     val isMinimized: Boolean = false,
-    val alpha: Float = 1.0f,
+    val alpha: Float = 0.5f,
     val iconSize: Int = 48,
     val maxDockApps: Int = 4,
     val selectedApps: Set<String> = emptySet()
@@ -51,7 +51,7 @@ class FloatingActionViewModel(private val prefs: SharedPreferences) : ViewModel(
             snapPosition = snapPosition,
             y = prefs.getInt(ComposeFloatingActionService.KEY_FLOATING_Y, 100),
             isMinimized = prefs.getBoolean(ComposeFloatingActionService.KEY_FLOATING_MINIMIZED_STATE, false),
-            alpha = prefs.getFloat(ComposeFloatingActionService.KEY_FLOATING_ALPHA, 1.0f),
+            alpha = prefs.getFloat(ComposeFloatingActionService.KEY_FLOATING_ALPHA, 0.5f),
             iconSize = prefs.getInt(ComposeFloatingActionService.KEY_FLOATING_ICON_SIZE, 48),
             maxDockApps = prefs.getInt(ComposeFloatingActionService.KEY_MAX_DOCK_APPS, 4),
             selectedApps = prefs.getStringSet(ComposeFloatingActionService.KEY_SELECTED_APPS, emptySet()) ?: emptySet()
