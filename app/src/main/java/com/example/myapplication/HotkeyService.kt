@@ -8,6 +8,7 @@ import android.os.SystemClock
 import android.util.Log
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
+import java.util.LinkedList
 
 class HotkeyService : AccessibilityService() {
 
@@ -16,8 +17,29 @@ class HotkeyService : AccessibilityService() {
     private val doublePressThreshold = 2000 // Milliseconds
     private var isWaitingForActionKey = false
 
+    // In-memory list to track the last two unique foreground apps
+    private val recentApps = LinkedList<String>()
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // This will be used in Phase 3 for tracking window state changes.
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            val packageName = event.packageName?.toString() ?: return
+
+            // Filter out events from the launcher, this app, or invalid packages
+            if (packageName == "com.example.myapplication" || isLauncher(packageName)) {
+                return
+            }
+            
+            // If the list is empty or the new app is different from the most recent one
+            if (recentApps.isEmpty() || recentApps.first != packageName) {
+                recentApps.addFirst(packageName)
+                Log.d(tag, "App switched to: $packageName. Recent apps list: $recentApps")
+            }
+
+            // Keep the list size at a maximum of 2
+            while (recentApps.size > 2) {
+                recentApps.removeLast()
+            }
+        }
     }
 
     override fun onKeyEvent(event: KeyEvent?): Boolean {
@@ -25,8 +47,6 @@ class HotkeyService : AccessibilityService() {
             return super.onKeyEvent(event)
         }
 
-        // NOTE: For simplicity, settings are loaded on every key event. A more optimized
-        // approach would be to load them once and refresh via a broadcast or service command.
         val prefs = getSharedPreferences(ComposeFloatingActionService.PREFS_NAME, Context.MODE_PRIVATE)
         val triggerKeyCode = prefs.getInt(ComposeFloatingActionService.KEY_HOTKEY_TRIGGER_MODIFIER, KeyEvent.KEYCODE_ALT_LEFT)
         val actionKey1 = prefs.getInt(ComposeFloatingActionService.KEY_HOTKEY_ACTION_1, KeyEvent.KEYCODE_1)
@@ -41,16 +61,13 @@ class HotkeyService : AccessibilityService() {
         if (isTriggerKey(currentKeyCode, triggerKeyCode)) {
             val currentTime = SystemClock.uptimeMillis()
             if (currentTime - lastTriggerPressTime < doublePressThreshold) {
-                // Double press detected
                 isWaitingForActionKey = true
-                lastTriggerPressTime = 0 // Reset to prevent triple press from triggering
+                lastTriggerPressTime = 0
                 Log.d(tag, "Trigger key double press detected. Waiting for an action key.")
-                return true // Consume the event
+                return true
             } else {
-                // This is the first press
                 lastTriggerPressTime = currentTime
             }
-            // Allow the first press to be handled by the system (e.g., for standard Alt-Tab)
             return super.onKeyEvent(event)
         }
 
@@ -64,19 +81,36 @@ class HotkeyService : AccessibilityService() {
                 else -> -1
             }
 
-            // Always reset the waiting state after the next key press
-            isWaitingForActionKey = false
+            isWaitingForActionKey = false // Reset state after this key press
 
             if (appIndex != -1) {
                 Log.d(tag, "Hotkey sequence detected for app ${appIndex + 1}. Launching.")
-                launchApp(appIndex)
-                return true // Consume the action key event
+                launchAppByIndex(appIndex)
+                return true
+            } else if (currentKeyCode == lastAppActionKey && currentKeyCode != KeyEvent.KEYCODE_UNKNOWN) {
+                Log.d(tag, "Hotkey sequence for last app detected.")
+                switchToLastApp()
+                return true
             }
-            // TODO: Add logic for lastAppActionKey
         }
 
-        // If not part of our hotkey sequence, pass the event on.
         return super.onKeyEvent(event)
+    }
+
+    private fun isLauncher(packageName: String): Boolean {
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val resolveInfo = packageManager.resolveActivity(intent, 0)
+        return resolveInfo?.activityInfo?.packageName == packageName
+    }
+
+    private fun switchToLastApp() {
+        if (recentApps.size > 1) {
+            val lastAppPackage = recentApps[1] // The second element is the "last" app
+            Log.d(tag, "Switching to last app: $lastAppPackage")
+            launchAppByPackageName(lastAppPackage)
+        } else {
+            Log.d(tag, "Not enough recent apps to switch.")
+        }
     }
 
     // Helper to check if the pressed key matches the configured trigger key, handling left/right variants.
@@ -86,30 +120,33 @@ class HotkeyService : AccessibilityService() {
             KeyEvent.KEYCODE_CTRL_LEFT -> pressedKeyCode == KeyEvent.KEYCODE_CTRL_LEFT || pressedKeyCode == KeyEvent.KEYCODE_CTRL_RIGHT
             KeyEvent.KEYCODE_SHIFT_LEFT -> pressedKeyCode == KeyEvent.KEYCODE_SHIFT_LEFT || pressedKeyCode == KeyEvent.KEYCODE_SHIFT_RIGHT
             KeyEvent.KEYCODE_META_LEFT -> pressedKeyCode == KeyEvent.KEYCODE_META_LEFT || pressedKeyCode == KeyEvent.KEYCODE_META_RIGHT
-            else -> pressedKeyCode == configuredKeyCode // Should not happen with current UI
+            else -> pressedKeyCode == configuredKeyCode
         }
     }
 
-    private fun launchApp(index: Int) {
+    private fun launchAppByIndex(index: Int) {
         Log.d(tag, "launchApp called for index: $index")
         val prefs = getSharedPreferences(ComposeFloatingActionService.PREFS_NAME, Context.MODE_PRIVATE)
         val selectedAppsSet = prefs.getStringSet(ComposeFloatingActionService.KEY_SELECTED_APPS, emptySet()) ?: emptySet()
-        val selectedApps = selectedAppsSet.toList().sorted() // Sort alphabetically for predictable order
+        val selectedApps = selectedAppsSet.toList().sorted()
         Log.d(tag, "Currently selected apps: $selectedApps")
 
         if (index < selectedApps.size) {
-            val packageName = selectedApps[index]
-            Log.d(tag, "Attempting to launch app $index: $packageName")
-            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
-            if (launchIntent != null) {
-                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(launchIntent)
-                Log.d(tag, "Launch intent sent for $packageName")
-            } else {
-                Log.w(tag, "Could not get launch intent for package: $packageName")
-            }
+            launchAppByPackageName(selectedApps[index])
         } else {
             Log.d(tag, "No app configured for index $index. Only ${selectedApps.size} apps are selected.")
+        }
+    }
+
+    private fun launchAppByPackageName(packageName: String) {
+        Log.d(tag, "Attempting to launch app: $packageName")
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        if (launchIntent != null) {
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(launchIntent)
+            Log.d(tag, "Launch intent sent for $packageName")
+        } else {
+            Log.w(tag, "Could not get launch intent for package: $packageName")
         }
     }
 
@@ -122,6 +159,8 @@ class HotkeyService : AccessibilityService() {
         Log.d(tag, "HotkeyService connected. Programmatically setting flags.")
         val info = serviceInfo
         info.flags = info.flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
+        // We also need to request window state change events
+        info.eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
         this.serviceInfo = info
     }
 }

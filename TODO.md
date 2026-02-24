@@ -48,10 +48,10 @@ For each item in this TODO list:
     *   [X] 14.2. Create a new `HotkeySettingsScreen.kt` for managing hotkey assignments.
     *   [X] 14.3. Implement the UI with options to display, change, and clear the hotkey for each of the 5 configurable shortcuts.
     *   [X] 14.4. Update `HotkeyService` to load and use these custom hotkeys instead of the hard-coded defaults.
-*   **[ ] 15. "Last Two Apps" Switching**
-    *   [ ] 15.1. In `HotkeyService`, implement `onAccessibilityEvent()` to track `TYPE_WINDOW_STATE_CHANGED` events and identify foreground apps.
-    *   [ ] 15.2. Maintain an in-memory list of the last two unique foreground applications.
-    *   [ ] 15.3. When the assigned hotkey is pressed, implement the logic to launch the second app from the recent apps list.
+*   **[X] 15. "Last Two Apps" Switching**
+    *   [X] 15.1. In `HotkeyService`, implement `onAccessibilityEvent()` to track `TYPE_WINDOW_STATE_CHANGED` events and identify foreground apps.
+    *   [X] 15.2. Maintain an in-memory list of the last two unique foreground applications.
+    *   [X] 15.3. When the assigned hotkey is pressed, implement the logic to launch the second app from the recent apps list.
 
 ## Phase 6: Non-Functional Requirements & Testing
 
@@ -72,7 +72,7 @@ For each item in this TODO list:
 
 *   [ ] Explore advanced customization options (appearance, size, transparency).
 *   [ ] Investigate support for shortcuts to specific app actions.
-*   [- ] Consider different layouts for the floating action (grid, list, radial menu).
+*   [ ] Consider different layouts for the floating action (grid, list, radial menu).
 *   [ ] Research gesture-based activation/deactivation.
 
 ---
